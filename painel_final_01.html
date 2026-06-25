@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Copa na Globo — Painel de Monitoramento</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #0E1A14;
+    --panel: #122520;
+    --panel-2: #16302A;
+    --line: #214238;
+    --globo-yellow: #FFD60A;
+    --globo-blue: #2D6CDF;
+    --txt: #EDF3EF;
+    --txt-dim: #9DB4AB;
+    --good: #4ADE80;
+    --bad: #F87171;
+    --display: 'Fraunces', Georgia, serif;
+    --body: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  @font-face{font-family:'Fraunces';src:local('Georgia');}
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:radial-gradient(circle at 15% 0%, #163b2c 0%, var(--bg) 55%);
+    color:var(--txt);
+    font-family:var(--body);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;margin-bottom:24px;flex-wrap:wrap;gap:14px;
+  }
+  .brand-left{display:flex;align-items:center;gap:14px;}
+  .brand-logo{height:38px;width:auto;display:block;}
+  .brand-divider{width:1px;height:34px;background:var(--line);}
+  .brand-eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--globo-yellow);margin:0 0 6px;
+  }
+  h1{
+    font-family:var(--display);font-weight:600;font-size:34px;margin:0;
+    letter-spacing:-0.01em;
+  }
+  h1 span{color:var(--globo-yellow);}
+  .meta{font-family:var(--mono);font-size:12px;color:var(--txt-dim);text-align:right;}
+
+  /* Day picker strip */
+  .daystrip{display:flex;gap:8px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px;}
+  .daybtn{
+    flex:0 0 auto;background:var(--panel);border:1px solid var(--line);
+    color:var(--txt-dim);font-family:var(--mono);font-size:12px;
+    padding:9px 14px;border-radius:7px;cursor:pointer;transition:.15s;
+    white-space:nowrap;
+  }
+  .daybtn:hover{border-color:var(--globo-yellow);color:var(--txt);}
+  .daybtn.active{background:var(--globo-yellow);color:#15290F;border-color:var(--globo-yellow);font-weight:700;}
+
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  @media (max-width:820px){.grid{grid-template-columns:repeat(2,1fr);}}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;
+  }
+  .stat-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt-dim);margin:0 0 8px;}
+  .stat-value{font-family:var(--display);font-size:26px;font-weight:600;margin:0;}
+  .stat-sub{font-size:12px;color:var(--txt-dim);margin-top:4px;}
+  .delta-up{color:var(--good);}
+  .delta-down{color:var(--bad);}
+
+  .row2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-bottom:14px;}
+  @media (max-width:820px){.row2{grid-template-columns:1fr;}}
+
+  .panel-title{
+    font-family:var(--display);font-size:17px;margin:0 0 14px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .panel-title::before{content:'';width:8px;height:8px;background:var(--globo-yellow);border-radius:50%;display:inline-block;}
+
+  .platform-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px;}
+  .platform-name{width:80px;color:var(--txt-dim);font-family:var(--mono);font-size:11px;text-transform:uppercase;}
+  .bar-bg{flex:1;background:var(--panel-2);border-radius:4px;height:9px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:4px;}
+  .platform-val{width:78px;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--txt);}
+
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  @media (max-width:820px){.twocol{grid-template-columns:1fr;}}
+
+  ul.clean{margin:0;padding:0;list-style:none;}
+  ul.clean li{
+    padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;line-height:1.5;
+    display:flex;justify-content:space-between;gap:10px;
+  }
+  ul.clean li:last-child{border-bottom:none;}
+  .tname{color:var(--txt);}
+  .tcount{font-family:var(--mono);color:var(--globo-yellow);font-size:12px;white-space:nowrap;}
+
+  .work-good, .work-bad{padding:14px 16px;border-radius:10px;font-size:13px;line-height:1.55;}
+  .work-good{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);}
+  .work-bad{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);}
+  .work-good h4, .work-bad h4{margin:0 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;}
+  .work-good h4{color:var(--good);}
+  .work-bad h4{color:var(--bad);}
+  .work-good ul, .work-bad ul{margin:0;padding-left:18px;}
+  .work-good li, .work-bad li{margin-bottom:8px;}
+  .work-good li b, .work-bad li b{display:block;color:var(--txt);font-weight:600;margin-bottom:2px;}
+
+  .toppost{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;align-items:flex-start;}
+  .toppost:last-child{border-bottom:none;}
+  .toppost .rank{font-family:var(--display);font-weight:700;color:var(--globo-yellow);font-size:16px;min-width:22px;}
+  .toppost .meta-line{color:var(--txt-dim);font-family:var(--mono);font-size:10.5px;margin-bottom:3px;}
+  .toppost .txt{color:var(--txt);}
+
+  canvas{max-height:230px;}
+
+  .tag-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .tag-row:last-child{border-bottom:none;}
+  .tag-name{color:var(--txt);font-family:var(--mono);font-size:12px;}
+  .tag-count{font-family:var(--mono);color:var(--globo-yellow);font-size:12px;font-weight:700;}
+
+  .vs-row{display:flex;justify-content:space-between;padding:7px 0;font-size:12.5px;color:var(--txt-dim);border-bottom:1px dashed var(--line);}
+  .vs-row:last-child{border-bottom:none;}
+  .vs-row span:last-child{color:var(--txt);font-family:var(--mono);}
+
+  table.tt-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.tt-table th{
+    text-align:left;color:var(--txt-dim);font-family:var(--mono);font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;border-bottom:1px solid var(--line);
+  }
+  table.tt-table td{padding:7px 8px;border-bottom:1px solid var(--line);color:var(--txt);}
+  table.tt-table tr:last-child td{border-bottom:none;}
+  table.tt-table td.num{font-family:var(--mono);color:var(--globo-yellow);text-align:right;}
+
+  .gtrend-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .gtrend-row:last-child{border-bottom:none;}
+  .gtrend-pos{font-family:var(--display);color:var(--globo-yellow);font-weight:700;width:20px;}
+  .gtrend-term{flex:1;color:var(--txt);}
+  .gtrend-val{font-family:var(--mono);color:var(--txt-dim);font-size:11.5px;}
+
+  .hourly-highlight{
+    background:var(--panel-2);border-left:3px solid var(--globo-blue);border-radius:6px;
+    padding:10px 13px;font-size:12.5px;line-height:1.5;color:var(--txt);margin-top:10px;
+  }
+  .hourly-highlight b{color:var(--globo-blue);}
+  .no-data{color:var(--txt-dim);font-size:12.5px;font-style:italic;}
+
+  .attention-list{display:flex;flex-direction:column;gap:10px;}
+  .att-item{background:var(--panel-2);border-radius:8px;padding:11px 13px;font-size:12.5px;line-height:1.5;}
+  .att-item b{color:var(--globo-yellow);}
+  .att-item.positive{border-left:3px solid var(--good);}
+  .att-item.positive b{color:var(--good);}
+  .att-item.warn{border-left:3px solid var(--globo-yellow);}
+
+  .section-spacer{height:6px;}
+
+  footer{
+    margin-top:30px;border-top:1px solid var(--line);padding-top:14px;
+    font-size:11px;color:var(--txt-dim);font-family:var(--mono);
+  }
+
+
+  .content-header{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:18px;gap:14px;flex-wrap:wrap;
+  }
+  .dl-btn{
+    background:var(--panel);border:1px solid var(--globo-yellow);color:var(--globo-yellow);
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
+    padding:9px 16px;border-radius:7px;cursor:pointer;transition:.15s;
+    display:flex;align-items:center;gap:7px;white-space:nowrap;
+  }
+  .dl-btn:hover{background:var(--globo-yellow);color:#15290F;}
+  .dl-btn:disabled{opacity:.6;cursor:wait;}
+  .dl-btn svg{width:13px;height:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand-left">
+      <img class="brand-logo" src="data:image/png;base64,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" alt="eLife">
+      <div class="brand-divider"></div>
+      <div>
+        <p class="brand-eyebrow">Monitoramento Digital</p>
+        <h1>Copa do Mundo na <span>Globo</span></h1>
+      </div>
+    </div>
+    <div class="meta">Fonte: Brandwatch · Emplifi · TikTok Business · YouTube Studio<br>Painel consolidado dos envios diários</div>
+  </header>
+
+  <div id="daily-view">
+    <div class="daystrip" id="daystrip"></div>
+    <div id="daily-content"></div>
+  </div>
+
+  <footer>
+    Metodologia: X/Twitter (Brandwatch) · Facebook (Socialnews/Brandwatch) · Instagram (hashtags oficiais + amostra de 700 mil perfis) · YouTube (posts e comentários). Depoimentos = volume total de menções nas plataformas monitoradas.
+  </footer>
+</div>
+
+<script>
+/* ============== DADOS ============== */
+const DAILY = [
+  {
+    id:'15_06', label:'15/06', title:'15 de Junho — Bélgica x Egito / Arábia Saudita x Uruguai',
+    mencoes:'11,4 mil', mencoesDelta:'+1% vs dia anterior', contas:'7,7 mil', retweets:'75%', curtidas:'218 mil',
+    tts_brasil:'5 (3% de todos)', tts_mundo:'0',
+    totals:{posts:'378', interacoes:'532,2K', views:'18,3M', alcance:'7,9M',deltas:{posts:null,interacoes:null,views:null,alcance:null}},
+    hourlyHighlight:'Menções sobre a narração de Renata Silveira ganham destaque',
+    hourlyShape:[0.1,0.08,0.06,0.05,0.05,0.07,0.12,0.18,0.22,0.28,0.32,0.3,0.34,0.4,0.5,0.62,1,0.7,0.55,0.42,0.36,0.3,0.22,0.15],
+    tagsConcorrencia:[['#CopaNaGlobo','2.170'],['#CopaDoMundoNaCazéTV','204'],['#CopaDoMundoNoSBT','227']],
+    mencoesJogos:[['Bélgica x Egito','1 mil'], ['Arábia Saudita x Uruguai','428']],
+    trendingTopics:[
+      {pos:1, nome:'#BELxEGI', mundo:'55', brasil:'-'},
+      {pos:2, nome:'#ARSxURU', mundo:'50', brasil:'-'},
+      {pos:3, nome:'#SUExTUN', mundo:'32', brasil:'-'},
+      {pos:4, nome:'#CMAxEQU', mundo:'14', brasil:'-'},
+      {pos:5, nome:'Bélgica x Egito', mundo:'6', brasil:'-'},
+    ],
+    googleTrends:[],
+    plataformas:[
+      {n:'Instagram', v:264600, max:300000},
+      {n:'Facebook', v:90000, max:300000},
+      {n:'Twitter', v:30000, max:300000},
+      {n:'TikTok', v:72300, max:300000},
+    ],
+    talentos:[['Renata Silveira','1,2 mil'],['Everaldo M.','139'],['Paulo Andrade','99'],['Denílson','164']],
+    topPosts:[
+      ['TikTok 11:33','72,3K · 1,5M views',"6 estrelas só o brasil depois que buscar esse hexa! título de copa africana de nações não vale...",'https://www.tiktok.com/@tvglobo/video/7651630315013688596?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['TikTok 21:33','51,6K · 468,1K views',"vem aí mais uma princesinha da vila! neymar e bruna biancardi anunciaram que vão ser papais...",'https://www.tiktok.com/@tvglobo/video/7651784768803163410?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Instagram 21:33','36,8K · 1,0M views',"vem aí mais uma princesinha da vila! neymar e bruna biancardi anunciaram que vão ser papais...",'https://www.instagram.com/reel/DZoHRNJAFKb/'],
+      ['TikTok 15:26','36,7K · 321,7K views',"acabouuuuu!!!!! o futebol é emocionante!!!! é a história sendo escrita! primeira copa de cabo verde...",'https://www.tiktok.com/@tvglobo/video/7651690279916981525?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['TikTok 12:21','29,0K · 387,6K views',"a pergunta que não quer calar: como anda a recuperação do neymar? a expectativa é grande...",'https://www.tiktok.com/@tvglobo/video/7651642688596446471?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Instagram 11:34','25,9K · 1,3M views',"6 estrelas só o brasil depois que buscar esse hexa! título de copa africana de nações não vale...",'https://www.instagram.com/reel/DZnCu61kzL9/'],
+      ['Instagram 12:24','23,5K · 426,9K views',"a pergunta que não quer calar: como anda a recuperação do neymar? a expectativa é grande...",'https://www.instagram.com/reel/DZnIdm0khPN/'],
+      ['Instagram 17:51','20,3K · 310,1K views · 150,1K alcance',"o protagonista do dia! simplesmente vozinha, o paredão de cabo verde, é um noveleiro de primeira...",'https://www.instagram.com/p/DZnt-bXmrmZ/'],
+      ['Instagram 12:52','14,5K · 309,6K views',"meteu moral! isso aqui é brasil, tem que respeitar! em entrevista pós jogo, vini jr. ouviu o...",'https://www.instagram.com/reel/DZnLp3NjN7h/'],
+      ['Instagram 17:07','12,5K · 159,1K views · 103,5K alcance',"isso é futebol, amigos! olha a festa da torcida de cabo verde! vozinha foi o nome da emoção...",'https://www.instagram.com/reel/DZno0-6kn24/'],
+    ],
+    bottomPosts:[
+      ['Facebook 23:53','10 interações',"marca na agenda, 14 de junho dia do bruxo. é praticamente um dia de travessuras...",'https://www.facebook.com/150312925065096_1533627201753558'],
+      ['Facebook 23:58','11 interações',"vozinha você é gigante!!! viva cabo verde. só a copa do mundo para produzir histórias assim...",'https://www.facebook.com/150312925065096_1533630328419912'],
+      ['Facebook 13:59','16 interações',"eita que teve jogão holanda vs. japão. os caras entregaram muita bola e terminaram empatados...",'https://www.facebook.com/150312925065096_1533295678453377'],
+      ['Facebook 23:21','19 interações',"olha o prensadão do dia passando na sua telinha! irmão hoje teve coisa demais...",'https://www.facebook.com/150312925065096_1533608711755407'],
+      ['Facebook 20:21','23 interações',"vai achando que a arábia saudita é boba! os caras chegam preparados na copa e...",'https://www.facebook.com/150312925065096_1533511838431761'],
+    ],
+    funcionou:[
+      ['Cultura pop furou a bolha dos jogos', 'Anúncio de gravidez de Neymar dominou o Top 3, com 72,3K no TikTok — vida pessoal dos atletas compete com os jogos em atenção.'],
+      ['Vozinha: personagem que a Globo não transmitiu, mas o feed adotou', 'Jogo contra a Espanha não estava na grade, mas os posts sobre o goleiro foram os mais engajados da janela.'],
+      ['Marco histórico gerou engajamento cruzado', 'Renata Silveira como 1ª mulher a narrar Copa performou até no Twitter (6,4K), resultado atípico.'],
+    ],
+    naofuncionou:[
+      ['Twitter como diário de bordo ao vivo', '125 posts no dia, vários com 1 interação só.'],
+      ['Facebook fora do momento de gol', 'Conteúdo editorial e institucional ficou entre 30–50 interações.'],
+      ['Arábia Saudita x Uruguai no piso de engajamento', 'Sem Brasil e sem personagem de tração, a janela somou só 20,0K em 79 posts.'],
+    ],
+    positivos:[
+      {t:'Renata Silveira, primeira brasileira a narrar Copa in loco', d:'A narradora fez o jogo entre Bélgica x Egito e recebeu a homenagem do comentarista Caio Ribeiro. Usuários elogiaram a narração e as informações que ela trouxe durante a transmissão.'},
+    ],
+    atencao:[
+      {t:'Globo não transmitiu Cabo Verde x Espanha', d:'A página @futnatv afirmou que a emissora "perdeu a primeira grande história da Copa do Mundo 2026" ao não transmitir o empate de Cabo Verde com a Espanha.'},
+      {t:'Casimiro ironiza a Globo', d:'"A Globo tá passando um monte de novela, não tá passando o jogo [da Copa]."'},
+      {t:'Críticas à narração de Renata Silveira', d:'Um internauta afirmou: "Tem muito narrador mais competente que ela que merecia estar in loco no mundial."'},
+    ]
+  },
+  {
+    id:'16_06', label:'16/06', title:'16 de Junho — França x Senegal / Áustria x Jordânia',
+    mencoes:'14,8 mil', mencoesDelta:'+29% vs dia anterior (11,4 mil)', contas:'11 mil', retweets:'42%', curtidas:'128,5 mil',
+    tts_brasil:'5 (2% de todos)', tts_mundo:'-',
+    totals:{posts:'327', interacoes:'413,2K', views:'11,9M', alcance:'5,7M',deltas:{posts:'-13%',interacoes:'-22%',views:'-35%',alcance:'-28%'}},
+    hourlyHighlight:'Internautas repercutem falta de transmissão de Argentina x Argélia após hat trick de Messi',
+    hourlyShape:[0.08,0.06,0.05,0.05,0.06,0.1,0.15,0.2,0.24,0.3,0.34,0.3,0.38,0.45,0.55,0.7,0.62,1,0.5,0.4,0.32,0.26,0.18,0.12],
+    tagsConcorrencia:[['#CopaNaGlobo','1.677'],['#CopaDoMundoNaCazéTV','99'],['#CopaDoMundoNoSBT','79']],
+    mencoesJogos:[['França x Senegal','592'], ['Áustria x Jordânia','124']],
+    trendingTopics:[
+      {pos:1, nome:'#FRAxSEN', mundo:'74', brasil:'-'},
+      {pos:2, nome:'#braxmar', mundo:'47', brasil:'-'},
+      {pos:3, nome:'#ARSxURU', mundo:'18', brasil:'-'},
+      {pos:4, nome:'Áustria x Jordânia', mundo:'3', brasil:'-'},
+      {pos:5, nome:'França x Senegal', mundo:'3', brasil:'-'},
+    ],
+    googleTrends:[['frança x senegal','1 Mi'], ['áustria x jordânia','100 mil']],
+    plataformas:[
+      {n:'Instagram', v:246800, max:300000},
+      {n:'Facebook', v:60000, max:300000},
+      {n:'Twitter', v:3200, max:300000},
+      {n:'TikTok', v:92800, max:300000},
+    ],
+    talentos:[['Renata Silveira','652'],['Caio Ribeiro','184'],['Everaldo Marques','154'],['Denílson','1.194']],
+    topPosts:[
+      ['TikTok 00:19','92,8K · 982,2K views',"ooooooow modeusoooo, filho é tão bom né? a verdade é que os filhos enriquecem a vida...",'https://www.tiktok.com/@tvglobo/video/7651827555468725511?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Instagram 11:04','33,9K · 362,0K views · 237,2K alcance',"já temos o primeiro queridinho da copa? o goleiro de cabo verde josimar dias, mais conhecido como vozinha...",'https://www.instagram.com/reel/DZpkF-viWHW/'],
+      ['Instagram 00:13','26,6K · 420,3K views · 298,3K alcance',"\"grande geração belga\" chega dessa galera família, eles adiaram nosso hexa para esse ano, mas tudo...",'https://www.instagram.com/reel/DZoZf5fNF_7/'],
+      ['TikTok 00:16','26,6K · 233,3K views',"\"grande geração belga\" chega dessa galera família, eles adiaram nosso hexa para esse ano, mas tudo...",'https://www.tiktok.com/@tvglobo/video/7651826827656203527?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Instagram 00:06','23,4K · 819,7K views · 538,1K alcance',"ooooooow modeusoooo, filho é tão bom né? a verdade é que os filhos enriquecem a vida de qualquer...",'https://www.instagram.com/reel/DZoYvPItfRY/'],
+      ['Instagram 13:04','19,9K · 194,3K views · 132,0K alcance',"a legenda fica por conta de vocês... hoje é dia de apreciar de perto a qualidade de seleção francesa...",'https://www.instagram.com/reel/DZpx50UDCko/'],
+      ['Instagram 15:32','16,7K · 134,2K views · 98,0K alcance',"alô, endrick? tá podendo falar? o porchat deixou um recadinho pra você com vários conselhos...",'https://www.instagram.com/reel/DZqCyouk82B/'],
+      ['TikTok 11:16','16,3K · 333,1K views',"bora de notícias da nossa seleção brasileira? karine alves trouxe todas as novidades, inclusive...",'https://www.tiktok.com/@tvglobo/video/7651997010085612820?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Instagram 00:11','11,4K · 191,4K views · 143,0K alcance',"tiago mito medeiros nas ruas de miami. o homem tá vivendo a copa como ninguém, mas contem aí...",'https://www.instagram.com/reel/DZoZKXotPj_/'],
+      ['Instagram 20:49','11,3K · 463,1K views · 257,0K alcance',"copa é só de 4 em 4 anos, deixa pra dormir depois de 19 de julho! bora de áustria x jordânia...",'https://www.instagram.com/reel/DZqnCrwR_O6/'],
+    ],
+    bottomPosts:[
+      ['Facebook 20:53','5 interações',"o que esses caras devem estar felizes não é brincadeira não! a jordânia está disputando sua primeira...",'https://www.facebook.com/150312925065096_1534406421675636'],
+      ['Facebook 00:08','18 interações',"rodada recheada de gol, é dessa copa que a gente gosta! qual gol mais bonito...",'https://www.facebook.com/150312925065096_1533636201752658'],
+      ['Facebook 20:56','18 interações',"acertô, mizeravi! se é jogo de copa, é jogo grande!!! vem ver áustria x jordânia...",'https://www.facebook.com/150312925065096_1534408545008757'],
+      ['Facebook 11:30','19 interações',"nada de jogo fácil! bélgica e egito estrearam na copa e também ficaram no empate...",'https://www.facebook.com/150312925065096_1534055448377400'],
+      ['Facebook 20:29','20 interações',"bon après-midi, mes amis. se ligou no papo do petit cheval? ééééé...",'https://www.facebook.com/150312925065096_1534393828343562'],
+    ],
+    funcionou:[
+      ['Extracampo bateu os jogos pelo 2º dia', 'Filho de Neymar e Bruna Biancardi liderou; humor e fofoca respondem tanto quanto lances.'],
+      ['Vozinha durou além do jogo', '2 dias depois da estreia, reel sobre o goleiro chegou a 33,9K.'],
+      ['Torcida senegalesa como gancho cultural', 'Único post sem lance direto a entrar no Top 5 da janela França x Senegal.'],
+    ],
+    naofuncionou:[
+      ['Twitter no piso histórico', '3,2K interações em 105 posts — pior resultado individual do torneio até então.'],
+      ['Facebook abaixo em todos os posts', '5 piores do dia são todos do canal, entre 5–20 interações.'],
+    ],
+    positivos:[
+      {t:'Protagonismo de Renata Silveira', d:'A estreia de Renata Silveira permaneceu repercutindo. O perfil @tracklist enfatizou o feito "histórico", gerando 21,9 mil interações no X.'},
+    ],
+    atencao:[
+      {t:'Perda do direito de transmissão da estreia da Argentina', d:'A página @futnatv gerou críticas com 19 mil interações. Ironias sobre a Globo ter escolhido Áustria x Jordânia em vez da estreia da Argentina.'},
+      {t:'Fábio Porchat no Central da Copa', d:'Telespectadores reclamaram das piadas do humorista. Um seguidor afirmou: "Essa estética ultrapassada da globo é mais irritante que as resenhadas do vampeta e do charla".'},
+    ]
+  },
+  {
+    id:'17_06', label:'17/06', title:'17 de Junho — Inglaterra x Croácia / Uzbequistão x Colômbia',
+    mencoes:'8,0 mil', mencoesDelta:'-73,8% vs dia anterior (30,6 mil)', contas:'5,5 mil', retweets:'53%', curtidas:'30,1 mil',
+    tts_brasil:'3 (2% de todos)', tts_mundo:'-',
+    totals:{posts:'556', interacoes:'682,2K', views:'15,3M', alcance:'6,8M',deltas:{posts:'+70%',interacoes:'+65%',views:'+29%',alcance:'+19%'}},
+    hourlyHighlight:'Portais divulgaram que, apesar do bom desempenho da Cazé TV, a liderança em audiência segue pertencendo à Globo',
+    hourlyShape:[0.1,0.07,0.05,0.05,0.06,0.09,0.14,0.2,0.25,0.3,0.34,0.4,0.5,0.62,0.78,1,0.85,0.6,0.45,0.35,0.28,0.2,0.14,0.1],
+    tagsConcorrencia:[['#CopaNaGlobo','1,4 mil'],['#CopaDoMundoNaCazéTV','11'],['#CopaDoMundoNoSBT','0']],
+    mencoesJogos:[['Inglaterra x Croácia','181'], ['Uzbequistão x Colômbia','158']],
+    trendingTopics:[
+      {pos:1, nome:'#INGxCRO', mundo:'62', brasil:'-'},
+      {pos:2, nome:'Inglaterra x Croácia', mundo:'11', brasil:'-'},
+      {pos:3, nome:'#UZBxCOL', mundo:'9', brasil:'-'},
+    ],
+    googleTrends:[['uzbequistão x colômbia','500 mil'], ['inglaterra e croácia','200 mil']],
+    plataformas:[
+      {n:'Instagram', v:388100, max:400000},
+      {n:'TikTok', v:264600, max:400000},
+      {n:'Twitter', v:19200, max:400000},
+      {n:'Facebook', v:40000, max:400000},
+    ],
+    talentos:[['Renata Silveira','482'],['Villani','73'],['Everaldo Marques','73'],['Paulo Andrade','62']],
+    topPosts:[
+      ['TikTok 15:44','142,6K · 1,0M views',"amigo dos meus meninos é meu amigo também, pô! modric vai tá na tela da globo...",'https://www.tiktok.com/@tvglobo/video/7652437012770802951?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Instagram 18:15','67,7K · 546,8K views · 356,1K alcance',"ele literalmente sobe o nível! na beleza e na qualidade... bellingham já chegou marcando...",'https://www.instagram.com/reel/DZs6LA5xZmZ/'],
+      ['Instagram 16:05','62,0K · 1,8M views · 1,0M alcance',"amigo dos meus meninos é meu amigo também, pô! modric vai tá na tela da globo...",'https://www.instagram.com/reel/DZsrKv-xzN0/'],
+      ['Instagram 15:22','58,9K · 1,2M views · 773,1K alcance',"isso é rolê do bruxo minha gente! a gente nunca espera e ele sempre aparece com uma nova...",'https://www.instagram.com/reel/DZsmU4hxZvV/'],
+      ['TikTok 15:46','50,6K · 242,7K views',"seria esse o verdadeiro hino da inglaterra? a partir das 16h30, você curte inglaterra x croácia...",'https://www.tiktok.com/@tvglobo/video/7652437584940961031?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['TikTok 02:29','30,4K · 289,5K views',"estamos acordadíssimos e atentíssimos. tem golaço na madrugada, sim! áustria 1 x 1 jordânia...",'https://www.tiktok.com/@tvglobo/video/7652232139349445896?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Instagram 15:02','26,3K · 408,2K views · 214,7K alcance',"é oficial, família! deixa o menino ney brincar! nosso camisa 10 está treinando de vez...",'https://www.instagram.com/reel/DZskJOvxy9i/'],
+      ['Instagram 20:42','15,6K · 350,5K views · 167,6K alcance',"pare tudo o que você está fazendo e apenas veja o reconhecimento mútuo entre craques geracionais...",'https://www.instagram.com/reel/DZtK8zcRlkX/'],
+      ['Instagram 12:23','10,7K · 254,1K views · 135,0K alcance',"habemus camisa 10 em campo! 1 mês após a lesão, neymar voltou aos treinamentos...",'https://www.instagram.com/reel/DZsR7_mxqYq/'],
+      ['Instagram 00:42','10,5K · 204,4K views · 118,0K alcance',"estamos presenciando a história sendo escrita. vocês têm noção? o gigante lionel messi...",'https://www.instagram.com/p/DZrBz-fDXFZ/'],
+    ],
+    bottomPosts:[
+      ['TikTok 23:53','2 interações',"o torcedor menos fanático da colômbia agora...",'https://www.tiktok.com/@tvglobo/video/7652563054969834759?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['TikTok 17:53','14 interações',"quando o assunto é fanatismo, os ingleses não brincam em serviço!",'https://www.tiktok.com/@tvglobo/video/7652470407009799431?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Facebook 16:22','20 interações',"será que finalmente a seleção inglesa vai fazer o futebol voltar pra casa?",'https://www.facebook.com/150312925065096_1535145151601763'],
+      ['Facebook 18:59','21 interações',"raaaaashford! entrou no segundo tempo pra fazer mais um! a inglaterra...",'https://www.facebook.com/150312925065096_1535233948259550'],
+      ['Facebook 02:33','21 interações',"os valentes, os nobres, os cavalheiros. assim é conhecida a seleção da jordânia...",'https://www.facebook.com/150312925065096_1534601201656158'],
+    ],
+    funcionou:[
+      ['Ídolos globais como motor de engajamento', 'Bellingham, Modric e Messi dominaram os rankings independentemente do resultado em campo.'],
+      ['Seleção Brasileira traz tração mesmo sem jogar', '"Rolê do Bruxo" e retorno de Neymar aos treinos ficaram no Top 10.'],
+      ['Humor na madrugada salvou Áustria x Jordânia', 'Reel "acordadíssimos e atentíssimos" (30,4K) foi de longe o melhor post da madrugada.'],
+    ],
+    naofuncionou:[
+      ['Twitter como teletexto ao vivo', '215 posts, vários com 1 interação; só funcionou com humor ou dado surpreendente.'],
+      ['Conteúdo genérico de torcida no TikTok', 'Vídeo de torcedores sem texto teve só 2 interações.'],
+      ['Facebook abaixo em todas as janelas', '4 dos 5 piores posts do dia são do canal.'],
+    ],
+    positivos:[
+      {t:'Liderança de audiência', d:'@choquei (2,9 mil interações) destaca a liderança de audiência da Globo durante a Copa.'},
+      {t:'Desejo de exclusividade', d:'Usuária com 6 mil interações deseja que a Globo tenha todos os jogos da próxima Copa do Mundo.'},
+    ],
+    atencao:[
+      {t:'"Maior mancha esportiva"', d:'Reclamação com 1,2 mil interações classifica como a "maior mancha esportiva" a Globo não ter transmitido a estreia de CR7 e Messi.'},
+      {t:'Elogios à cobertura da Cazé TV', d:'Comentários elogiam a qualidade da cobertura, das exclusivas e da equipe de reportagem da Cazé TV.'},
+    ]
+  },
+  {
+    id:'18_06', label:'18/06', title:'18 de Junho — Suíça x Bósnia / México x Coreia do Sul',
+    mencoes:'6,7 mil', mencoesDelta:'-15,5% vs dia anterior (8 mil)', contas:'4,3 mil', retweets:'55%', curtidas:'126,7 mil',
+    tts_brasil:'6 (3,5% de todos)', tts_mundo:'1 (0,5%)',
+    totals:{posts:'548', interacoes:'546,8K', views:'15,6M', alcance:'5,7M',deltas:{posts:'-1%',interacoes:'-20%',views:'+2%',alcance:'-16%'}},
+    hourlyHighlight:'O início da partida entre México e Coreia do Sul agitou as menções compartilhadas por espectadores, que comunicaram sua torcida',
+    hourlyShape:[0.09,0.06,0.05,0.05,0.07,0.1,0.16,0.22,0.27,0.32,0.36,0.4,0.46,0.52,0.6,0.7,1,0.82,0.6,0.46,0.36,0.28,0.18,0.12],
+    tagsConcorrencia:[['#CopaNaGlobo','1.555'],['#CopaDoMundoNaCazéTV','1.538'],['#CopaDoMundoNoSBT','306']],
+    mencoesJogos:[['Suíça x Bósnia e Herzegovina','726'], ['México x Coréia do Sul','942']],
+    trendingTopics:[
+      {pos:1, nome:'#MEXxCOR', mundo:'20', brasil:'23'},
+      {pos:2, nome:'#UZBxCOL', mundo:'-', brasil:'48'},
+      {pos:3, nome:'#SUIxBOS', mundo:'-', brasil:'46'},
+      {pos:4, nome:'México x Coreia', mundo:'-', brasil:'34'},
+      {pos:5, nome:'#ingxcro', mundo:'-', brasil:'34'},
+      {pos:6, nome:'#fraxsen', mundo:'-', brasil:'20'},
+    ],
+    googleTrends:[['méxico x coreia do sul','200 mil'], ['suíça x bósnia e herzegovina','200 mil'], ['suica vs bosnia','200']],
+    plataformas:[
+      {n:'Instagram', v:389400, max:400000},
+      {n:'TikTok', v:101300, max:400000},
+      {n:'Twitter', v:10800, max:400000},
+      {n:'Facebook', v:6600, max:400000},
+    ],
+    talentos:[['Renata Silveira','232'],['Denílson','51'],['Caio Ribeiro','73'],['Rogério Corrêa','68']],
+    topPosts:[
+      ['Instagram 01:29','112,4K · 990,6K views · 682,5K alcance',"alô? robozão? o porchat trouxe uma mensagenzinha de apoio pra você. fica triste não, você é o melhor...",'https://www.instagram.com/reel/DZtr3J2t7GK/'],
+      ['TikTok 09:39','61,0K · 247,1K views',"quinta é quase sexta! e é mais um dia de copa na tela da globo! bora de méxico e coreia do sul...",'https://www.tiktok.com/@tvglobo/video/7652714218235399440?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['TikTok 01:16','40,3K · 255,8K views',"vamooooos colombia! vitória dos colombianos na estreia na copa! jogo duríssimo mas...",'https://www.tiktok.com/@tvglobo/video/7652584578112081159?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
+      ['Instagram 09:35','29,9K · 249,0K views · 173,9K alcance',"quinta é quase sexta! e é mais um dia de copa na tela da globo! bora de méxico e coreia do sul...",'https://www.instagram.com/reel/DZujiJNxtL9/'],
+      ['Instagram 01:29','26,3K · 355,9K views · 209,0K alcance',"vamooooos colombia! vitória dos colombianos na estreia na copa! jogo duríssimo mas...",'https://www.instagram.com/reel/DZtr3J2t7GK/'],
+      ['Instagram 12:28','23,8K · 840,8K views · 448,5K alcance',"nada de jogo para neymar! o camisa 10 seleção ficará em nova jersey para otimizar a fase final...",'https://www.instagram.com/reel/DZu3VdUxifs/'],
+      ['Instagram 18:22','21,1K · 158,2K views · 106,1K alcance',"você tem mais um motivo pra ver a coreia do sul em campo hoje! cho gue-sung...",'https://www.instagram.com/reel/DZvfz-_D0QO/'],
+      ['Instagram 18:18','12,7K · 90,5K views · 59,9K alcance',"tem fã do son heung-min aqui? então toma esse edit com newjeans que eu sei que vocês vão amar...",'https://www.instagram.com/reel/DZvfYIKRgJO/'],
+      ['Instagram 17:17','11,1K · 133,3K views · 99,8K alcance',"ê joguinho modorrento, hein? faz um golzinho aí, pô.",'https://www.instagram.com/reel/DZvYcB0Cc4f/'],
+      ['Instagram 10:51','10,6K · 101,4K views · 72,3K alcance',"dança y baila y ganha beijo! o @instadetiago tá vivendo essa copa do mundo como ninguém! quer entretenimento?...",'https://www.instagram.com/reel/DZusDzERPLh/'],
+    ],
+    bottomPosts:[
+      ['Facebook 18:55','3 interações',"o e.t. tá no topo! a fifa divulgou o power ranking, que vai avaliar...",'https://www.facebook.com/150312925065096_1536115531504725'],
+      ['Facebook 23:23','9 interações',"olha a análise do bruxo. no rolê de hoje, o bruxo analisou a primeira...",'https://www.facebook.com/150312925065096_1536267661489512'],
+      ['Facebook 22:49','11 interações',"o capitão tem fome de bola! são quatro copas e 144 jogos pela seleção...",'https://www.facebook.com/150312925065096_1536245248158420'],
+      ['Facebook 16:54','14 interações',"1ª rodada das zebras, senhoras e senhores! quantas histórias maravilhosas...",'https://www.facebook.com/150312925065096_1536046028178342'],
+      ['Facebook 21:52','14 interações',"se tem um povo feliz da vida é o mexicano! se liga na alegria dos torcedores...",'https://www.facebook.com/150312925065096_1536208521495426'],
+    ],
+    funcionou:[
+      ['Humor e cultura pop furaram a bolha dos jogos', 'Mensagem de Porchat para CR7 liderou com folga em dia sem jogo de peso.'],
+      ['Cruzamento com K-Pop (Cho Gue-Sung, Son Heung-min, NewJeans)', 'Gerou 21,1K e 12,6K — comunidade de cultura asiática respondeu forte.'],
+      ['Sinceridade sobre jogo sem graça', '"Joguinho modorrento" (Suíça x Bósnia) foi o melhor resultado da janela.'],
+    ],
+    naofuncionou:[
+      ['Twitter no lance a lance sem gancho', '187 posts, 10,8K interações; maioria entre 1–3 interações.'],
+      ['Suíça x Bósnia sem força própria', 'Precisou de piadas paralelas para sustentar a janela.'],
+      ['Facebook no fundo do ranking geral', '6,6K interações em 120 posts; 5 últimas posições do dia.'],
+    ],
+    positivos:[
+      {t:'Elogios a Renata Silveira', d:'Elogios consistentes à narração de Renata Silveira (@whoisjupa, 1,3 mil interações).'},
+    ],
+    atencao:[
+      {t:'Críticas a comentaristas', d:'Críticas a Felipe Bastos e Ramon Motta por excesso de opiniões pessoais nas transmissões.'},
+      {t:'Superioridade analítica da Cazé TV', d:'Usuários apontam superioridade analítica da Cazé TV (@thiagobarata87, 10,6 mil interações).'},
+      {t:'Novela vs. Copa', d:'Crítica à concorrência entre jogos e a novela "Coração Acelerado" (@RickSouza, 3,2 mil interações).'},
+    ]
+  },
+  {
+    id:'22_06', label:'19—22/06', title:'22 de Junho — Argentina x Áustria / Noruega x Senegal',
+    mencoes:'16 mil', mencoesDelta:'-12% vs dia anterior (18,2 mil)', contas:'8,3 mil', retweets:'48%', curtidas:'181,2 mil',
+    tts_brasil:'9 (5% de todos)', tts_mundo:'-',
+    totals:{posts:'729', interacoes:'605,4K', views:'19,0M', alcance:'10,4M',deltas:{posts:'+33%',interacoes:'+47%',views:'+22%',alcance:'+75%'}},
+    hourlyHighlight:'Torcedores reagem ao momento da torcida da Noruega',
+    hourlyShape:[0.12,0.08,0.06,0.05,0.06,0.1,0.15,0.2,0.26,0.3,0.34,0.4,0.46,0.52,0.6,0.68,0.78,0.7,0.6,0.5,0.4,0.32,0.5,1],
+    tagsConcorrencia:[['#CopaNaGlobo','1,5 mil'],['#CopaDoMundoNaCazéTV','1,6 mil'],['#CopaDoMundoNoSBT','264']],
+    mencoesJogos:[['Argentina x Áustria','1,6 mil'], ['Noruega x Senegal','2 mil']],
+    trendingTopics:[
+      {pos:1, nome:'#ARGxAUT', mundo:'73', brasil:'-'},
+      {pos:2, nome:'#NORxSEN', mundo:'34', brasil:'-'},
+      {pos:3, nome:'#NZLxEGI', mundo:'33', brasil:'-'},
+      {pos:4, nome:'#URUxCBV', mundo:'13', brasil:'-'},
+      {pos:5, nome:'Argentina x Áustria', mundo:'11', brasil:'-'},
+      {pos:6, nome:'#fraxsen', mundo:'10', brasil:'-'},
+      {pos:7, nome:'Jordânia x Argélia', mundo:'7', brasil:'-'},
+      {pos:8, nome:'Noruega x Senegal', mundo:'7', brasil:'-'},
+      {pos:9, nome:'Villani', mundo:'7', brasil:'-'},
+    ],
+    googleTrends:[['alex escobar passa mal ao vivo','100 mil'], ['argentina vs austria','10 mil']],
+    plataformas:[
+      {n:'Instagram', v:650500, max:700000},
+      {n:'Facebook', v:59800, max:700000},
+      {n:'Twitter', v:18200, max:700000},
+      {n:'YouTube', v:3100, max:700000},
+    ],
+    talentos:[['Alex Escobar','1.053'],['Maestro Júnior','119'],['Pedro Bassan','233'],['Denílson','176']],
+    topPosts:[
+      ['Instagram 23:54','97,8K · 993,7K views · 535,9K alcance',"que momento lindo. a seleção da noruega comemora sua vitória fazendo a remada viking. o estádio todo gritando...",'https://www.instagram.com/reel/DZ6Y_gJNDD5/'],
+      ['Instagram 16:23','84,9K · 864,1K views · 641,7K alcance',"é surreal o que é lionel messi! a história foi escrita e reescrita mais uma vez pelos pés desse gênio: 18 gols em copas!...",'https://www.instagram.com/reel/DZ5lWWrD9X3/'],
+      ['Instagram 14:16','76,0K · 838,2K views · 584,8K alcance',"sobrenatural demais pro gosto do adm kkk) mas uma coisa precisa ser dita: \"alergia à melanina\" me destruiu...",'https://www.instagram.com/reel/DZ5W0XHRsku/'],
+      ['TikTok 16:16','46,9K · 245,8K views',"é surreal o que é lionel messi! a história foi escrita e reescrita mais uma vez pelos pés desse gênio: 18 gols em copas!...",'https://www.tiktok.com/@tvglobo/video/7654300774364859665'],
+      ['Instagram 09:39','46,3K · 481,0K views · 326,9K alcance',"não é por acaso que o craque lucas paquetá foi convocado mais uma vez para jogar pela seleção!...",'https://www.instagram.com/reel/DZ43AiQx0nz/'],
+      ['Facebook 23:54','38,4K · 862,3K views',"que momento lindo. a seleção da noruega comemora sua vitória fazendo a remada viking. o estádio todo gritando...",'https://www.facebook.com/150312925065096_1539957387787206'],
+      ['Instagram 21:17','25,7K · 354,1K views · 233,6K alcance',"absolute cinema! isso aqui é genial! noruega x senegal de um jeito que você nunca viu...",'https://www.instagram.com/reel/DZ6G-EBxKbP/'],
+      ['Instagram 14:48','21,6K · 155,9K views · 109,9K alcance',"eu em 2048: faz isso com o coração do pai não, fi. o cara é de outro planeta, é bom demais ver o messi jogar...",'https://www.instagram.com/reel/DZ5akgNmBxp/'],
+      ['Instagram 15:44','20,9K · 222,6K views · 148,1K alcance',"de paul do céu!!! o homem tem o molho, né? e ele já está ao vivo na tela da globo!...",'https://www.instagram.com/reel/DZ5g_U0iKr1/'],
+      ['Instagram 20:03','12,9K · 177,3K views · 118,7K alcance',"mais um recorde para a conta! messi segue fazendo história e alcançou mais uma marca impressionante...",'https://www.instagram.com/reel/DZ5-i12NZ7g/'],
+    ],
+    bottomPosts:[
+      ['YouTube 22:41','2 interações',"o primeiro duelo em copas a gente nunca esquece! jordânia e argélia se enfrentam...",'https://www.youtube.com/watch?v=YbETbnRChQU'],
+      ['YouTube 22:04','2 interações',"vai lá reclamar com filho de odin vai!!! nor 1 x 0 sen...",'https://www.youtube.com/watch?v=pX7x5ttI-Ng'],
+      ['YouTube 20:47','2 interações',"a vaga nas oitavas pode sair hoje! uma vitória deixa a noruega ainda mais perto...",'https://www.youtube.com/watch?v=5FwEG43i2ls'],
+      ['YouTube 12:03','3 interações',"e aí quem leva essa? argentina x austria...",'https://www.youtube.com/watch?v=XASj_dQUdCA'],
+      ['YouTube 22:10','4 interações',"rola a bola é segundo tempo e os leões precisam de gol para seguir...",'https://www.youtube.com/watch?v=VsiMmO1Od5k'],
+    ],
+    funcionou:[
+      ['Humor com personalidade bateu os lances diretos', '"Sobrenatural demais" e "absolute cinema" superaram qualquer post de gol.'],
+      ['Messi como motor de engajamento em dia sem Brasil', '3 posts no Top 5; um tema sustenta vários formatos sem perder força.'],
+      ['Remada Viking na madrugada liderou o dia', 'Publicado às 23:54, terminou como post mais engajado (97,8K + 38,4K no Facebook).'],
+    ],
+    naofuncionou:[
+      ['Twitter com os mesmos temas, sem resultado', 'Posts sobre Messi tiveram só 1 interação vs 76K–84K no Instagram.'],
+      ['YouTube no fundo do ranking pelo 5º dia seguido', '142 posts e 3,1K interações; 3 piores posts do dia são do canal.'],
+    ],
+    positivos:[
+      {t:'Solidariedade a Alex Escobar', d:'Repercutiu nas redes o momento em que Alex Escobar passou mal durante uma participação ao vivo. A maior parte das manifestações foi de apoio e solidariedade ao repórter.'},
+      {t:'Elogios à reportagem sobre Vinícius Júnior', d:'A reportagem de Pedro Bassan recebeu elogios pela forma como abordou o protagonismo de Vinícius Júnior nos amistosos e no início da Copa.'},
+    ],
+    atencao:[
+      {t:'Tentativa de aproximação com os jovens', d:'Internautas repercutiram o que consideram uma tentativa da Globo de "parecer mais descolada", mas apontaram que a emissora estaria falhando em se conectar com o público jovem.'},
+      {t:'Vantagem da Cazé TV', d:'Usuários destacaram a vantagem da CazéTV por transmitir partidas gratuitamente.'},
+      {t:'Narração da Argentina criticada', d:'A narração de Villani gerou insatisfação entre internautas pela suposta exaltação excessiva da seleção argentina.'},
+    ]
+  },
+  {
+    id:'23_06', label:'23/06', title:'23 de Junho — Jordânia x Argélia / Inglaterra x Gana / Portugal x Escócia',
+    mencoes:'—', mencoesDelta:'—', contas:'—', retweets:'—', curtidas:'—',
+    tts_brasil:'—', tts_mundo:'—',
+    totals:null,
+    hourlyHighlight:null,
+    hourlyShape:null,
+    tagsConcorrencia:[],
+    mencoesJogos:[],
+    trendingTopics:[],
+    googleTrends:[],
+    plataformas:[
+      {n:'Instagram', v:368700, max:700000},
+      {n:'TikTok', v:22400, max:700000},
+      {n:'Facebook', v:0, max:700000},
+      {n:'YouTube', v:0, max:700000},
+    ],
+    talentos:[['Renata Silveira','—'],['Caio Ribeiro','—'],['Bellingham','—'],['CR7','—']],
+    topPosts:[
+      ['Instagram 14:52','38,1K · 504,5K views · 361,9K alcance',"um dia com bellingham em campo é um dia lindo! daqui a pouco ele entra em campo para inglaterra x gana...",'https://www.instagram.com/reel/DZ7_yYGRQKj/'],
+      ['Instagram 09:04','30,3K · 274,1K views · 197,2K alcance',"gabriel martinelli é um craque, isso não temos dúvida! e ele tem sede de hexa...",'https://www.instagram.com/reel/DZ7Xvhpxk20/'],
+      ['TikTok 17:10','22,4K · 184,5K views',"eu juro que não esperava um final desse numa comemoração da... inglaterra! a felicidade foi escalando demais...",'https://www.tiktok.com/@tvglobo/video/7654685477760404752'],
+      ['Instagram 21:26','21,1K · 190,3K views · 126,4K alcance',"é craque, não tem jeito! cristiano ronaldo mostrou hoje que não veio para brincar na copa do mundo...",'https://www.instagram.com/reel/DZ8s2ZHNrAj/'],
+      ['Instagram 20:59','20,1K · 291,2K views · 195,2K alcance',"neymar preocupa o técnico escocês. é pra tremer na base com a nossa seleção de superestrelas...",'https://www.instagram.com/reel/DZ8pupjtuX4/'],
+      ['Instagram 16:11','20,1K · 263,1K views · 174,5K alcance',"siiiuuuuuu. o homem, uma máquina, uma besta enjaulada! cristiano ronaldo é o único ser humano a marcar gol em 6 edições...",'https://www.instagram.com/reel/DZ8Iz88xh4r/'],
+      ['Instagram 23:15','18,5K · 414,0K views · 257,3K alcance',"o torcedor mais icônico do rd congo chega ao méxico. lumumba vea desembarcou no méxico para acompanhar a seleção...",'https://www.instagram.com/reel/DZ85N_cRfdC/'],
+      ['Instagram 16:15','16,2K · 230,9K views · 171,1K alcance',"eu juro que não esperava um final desse numa comemoração da... inglaterra! a felicidade foi escalando demais...",'https://www.instagram.com/reel/DZ8JFfmRp9B/'],
+      ['Instagram 12:51','15,3K · 147,2K views · 111,6K alcance',"não tem como não torcer pro cara. é muita humildade. é o artilheiro da copa do mundo mais pé no chão que tem?...",'https://www.instagram.com/reel/DZ7x_p9nXue/'],
+      ['Instagram 00:04','14,0K · 171,5K views · 123,8K alcance',"messi x mbappé. os dois competindo para ver quem faz mais gols. afinal, esses dois são craques de jogo...",'https://www.instagram.com/reel/DZ6Z0TXtCzP/'],
+    ],
+    bottomPosts:[
+      ['YouTube 20:58','2 interações',"vamo calibrar essa pontaria pro próximo jogo hein inglaterra!...",'https://www.youtube.com/watch?v=M6iaf2anl0s'],
+      ['YouTube 17:14','3 interações',"essa polêmica eu deixo pra vocês: tradicional em copas ou não?...",'https://www.youtube.com/watch?v=ypN0QnMT8l8'],
+      ['YouTube 17:11','4 interações',"depois de um primeiro jogo apagado, os gajos chegaram na copa e mostraram...",'https://www.youtube.com/watch?v=q9eUamwTmX4'],
+      ['YouTube 17:09','4 interações',"antoine semenyo é um cracaço de bola! o bom e novo ganês vem para...",'https://www.youtube.com/watch?v=xbGAKsVrzUE'],
+      ['YouTube 17:06','5 interações',"a dupla renata e caio já estão no frio de boston para mais uma transmissão!...",'https://www.youtube.com/watch?v=IexJ4lAXWHg'],
+    ],
+    funcionou:[
+      ['Conteúdo de Seleção antes dos jogos do dia', 'Bellingham (38,1K) e Martinelli (30,3K) publicados antes das janelas terminaram no Top 2 do dia.'],
+      ['TikTok com um post isolado liderou uma janela inteira', 'O único post de TikTok na janela de Inglaterra x Gana (22,4K) superou todos os 25 posts de Instagram do período.'],
+      ['Torcedor Lumumba Vea como personagem da janela noturna', 'Com 18,5K, rendeu mais do que qualquer post sobre o jogo em si.'],
+    ],
+    naofuncionou:[
+      ['YouTube no fundo do ranking pelo 6º dia seguido', '5 piores posts do dia são do canal, entre 2–5 interações.'],
+      ['Cobertura direta dos jogos abaixo do conteúdo de antecipação', 'Nenhum post de lance ou gol entrou no Top 5; o conteúdo preparatório superou a transmissão.'],
+    ],
+    positivos:[],
+    atencao:[
+      {t:'Sem dados de monitoramento externo', d:'Pontos de atenção e pontos positivos (Brandwatch) ainda não constam na planilha para o dia 23/06.'},
+    ]
+  },
+];
+
+
+/* ============== HELPERS ============== */
+const palette = {Instagram:'#E1306C', Facebook:'#2D6CDF', Twitter:'#1DA1F2', TikTok:'#FFD60A', YouTube:'#FF4444'};
+function fmt(n){
+  if(n>=1000000) return (n/1000000).toFixed(2).replace('.0','')+'M';
+  if(n>=1000) return (n/1000).toFixed(1).replace('.0','')+'K';
+  return n;
+}
+function platformRows(plats){
+  return plats.map(p=>`
+    <div class="platform-row">
+      <div class="platform-name">${p.n}</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100,(p.v/p.max)*100)}%;background:${palette[p.n]||'#888'}"></div></div>
+      <div class="platform-val">${fmt(p.v)}${p.posts?` · ${p.posts}p`:''}</div>
+    </div>`).join('');
+}
+function workList(items, cls){
+  return `<ul>${items.map(([t,d])=>`<li><b>${t}</b>${d}</li>`).join('')}</ul>`;
+}
+
+/* ============== RENDER DAILY ============== */
+const daystrip = document.getElementById('daystrip');
+const dailyContent = document.getElementById('daily-content');
+
+function renderDay(d){
+  dailyContent.innerHTML = `
+    <div class="content-header">
+      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">${d.title}</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="dl-btn" onclick="downloadPDF('daily','Copa_Globo_${d.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+          Baixar PDF
+        </button>
+        <button class="dl-btn" style="border-color:var(--line);color:var(--txt-dim);opacity:.4;cursor:not-allowed;" disabled title="Em breve">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Infográfico
+        </button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <p class="stat-label">Menções espontâneas</p>
+        <p class="stat-value">${d.mencoes}</p>
+        <p class="stat-sub ${d.mencoesDelta.includes('-')?'delta-down':'delta-up'}">${d.mencoesDelta}</p>
+      </div>
+      <div class="card">
+        <p class="stat-label">Contas falando da transmissão</p>
+        <p class="stat-value">${d.contas}</p>
+      </div>
+      <div class="card">
+        <p class="stat-label">Retweets no X</p>
+        <p class="stat-value">${d.retweets}</p>
+        <p class="stat-sub">${d.curtidas} curtidas no X</p>
+      </div>
+      <div class="card">
+        <p class="stat-label">Trending Topics</p>
+        <p class="stat-value">${d.tts_brasil.split(' ')[0]}</p>
+        <p class="stat-sub">Brasil: ${d.tts_brasil} · Mundo: ${d.tts_mundo}</p>
+      </div>
+    </div>
+
+    ${d.totals ? `
+    <div class="grid">
+      <div class="card" style="border-color:rgba(255,214,10,.25);">
+        <p class="stat-label">Posts (todos formatos)</p>
+        <p class="stat-value">${d.totals.posts}</p>
+        ${d.totals.deltas && d.totals.deltas.posts ? `<p class="stat-sub ${d.totals.deltas.posts.startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.posts} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
+      </div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);">
+        <p class="stat-label">Interações totais</p>
+        <p class="stat-value">${d.totals.interacoes}</p>
+        ${d.totals.deltas && d.totals.deltas.interacoes ? `<p class="stat-sub ${d.totals.deltas.interacoes.startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.interacoes} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
+      </div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);">
+        <p class="stat-label">Views totais</p>
+        <p class="stat-value">${d.totals.views}</p>
+        ${d.totals.deltas && d.totals.deltas.views ? `<p class="stat-sub ${d.totals.deltas.views.startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.views} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
+      </div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);">
+        <p class="stat-label">Alcance (IG + FB)</p>
+        <p class="stat-value">${d.totals.alcance}</p>
+        ${d.totals.deltas && d.totals.deltas.alcance ? `<p class="stat-sub ${d.totals.deltas.alcance.startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.alcance} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
+      </div>
+    </div>` : ''}
+
+    <div class="row2">
+      <div class="card">
+        <p class="panel-title">Evolução de menções por hora</p>
+        ${d.hourlyShape ? `<canvas id="hourlyChart-${d.id}"></canvas>` : '<p class="no-data">Dado não disponível para este dia.</p>'}
+        ${d.hourlyHighlight ? `<div class="hourly-highlight"><b>Destaque do dia · </b>${d.hourlyHighlight}</div>` : ''}
+      </div>
+      <div class="card">
+        <p class="panel-title">Comparativo de tags — concorrência</p>
+        ${d.tagsConcorrencia && d.tagsConcorrencia.length ? d.tagsConcorrencia.map(([n,c])=>`
+          <div class="tag-row"><span class="tag-name">${n}</span><span class="tag-count">${c} depoimentos</span></div>
+        `).join('') : '<p class="no-data">Dado não disponível.</p>'}
+        ${d.mencoesJogos && d.mencoesJogos.length ? `
+        <p class="panel-title" style="margin-top:16px;font-size:14px;">Menções por partida</p>
+        ${d.mencoesJogos.map(([j,c])=>`<div class="vs-row"><span>${j}</span><span>${c} menções</span></div>`).join('')}
+        ` : ''}
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="card">
+        <p class="panel-title">Trending Topics</p>
+        ${d.trendingTopics && d.trendingTopics.length ? `
+        <table class="tt-table">
+          <thead><tr><th>#</th><th>Termo</th><th>Mundo</th><th>Brasil</th></tr></thead>
+          <tbody>
+            ${d.trendingTopics.map(t=>`<tr><td>${t.pos}º</td><td>${t.nome}</td><td class="num">${t.mundo}</td><td class="num">${t.brasil}</td></tr>`).join('')}
+          </tbody>
+        </table>` : '<p class="no-data">Dado não disponível para este dia.</p>'}
+      </div>
+      <div class="card">
+        <p class="panel-title">Google Trends</p>
+        ${d.googleTrends && d.googleTrends.length ? d.googleTrends.map((g,i)=>`
+          <div class="gtrend-row">
+            <span class="gtrend-pos">${i+1}º</span>
+            <span class="gtrend-term">${g[0]}</span>
+            <span class="gtrend-val">${g[1]} buscas</span>
+          </div>
+        `).join('') : '<p class="no-data">Dado não disponível para este dia.</p>'}
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="card">
+        <p class="panel-title">Divisão de redes — interações</p>
+        ${platformRows(d.plataformas)}
+      </div>
+      <div class="card">
+        <p class="panel-title">Talentos mais citados</p>
+        <ul class="clean">
+          ${d.talentos.map(([n,c])=>`<li><span class="tname">${n}</span><span class="tcount">${c} depoimentos</span></li>`).join('')}
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <p class="panel-title">Top 10 posts do dia</p>
+      ${d.topPosts.map((p,i)=>`
+        <div class="toppost">
+          <div class="rank">${String(i+1).padStart(2,'0')}</div>
+          <div>
+            <div class="meta-line">${p[0]} · ${p[1]}</div>
+            <div class="txt">${p[2]}</div>
+            ${p[3]?`<a href="${p[3]}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--globo-yellow);text-decoration:none;margin-top:3px;display:inline-block;opacity:.85;">ver post ↗</a>`:''}
+          </div>
+        </div>`).join('')}
+    </div>
+
+    ${d.bottomPosts ? `
+    <div class="card" style="margin-bottom:14px;">
+      <p class="panel-title" style="color:var(--bad);">Bottom 5 posts do dia <span style="font-size:11px;font-family:var(--mono);color:var(--txt-dim);font-weight:400;">Posts com ao menos 1 interação · Twitter excluído</span></p>
+      ${d.bottomPosts.map((p,i)=>`
+        <div class="toppost">
+          <div class="rank" style="color:var(--bad);">${String(i+1).padStart(2,'0')}</div>
+          <div>
+            <div class="meta-line">${p[0]} · <span style="color:var(--bad);">${p[1]}</span></div>
+            <div class="txt">${p[2]}</div>
+            ${p[3]?`<a href="${p[3]}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--bad);text-decoration:none;margin-top:3px;display:inline-block;opacity:.85;">ver post ↗</a>`:''}
+          </div>
+        </div>`).join('')}
+    </div>` : ''}
+
+    <div class="twocol">
+      <div class="work-good">
+        <h4>✔ O que funcionou</h4>
+        ${workList(d.funcionou)}
+      </div>
+      <div class="work-bad">
+        <h4>✘ O que não funcionou</h4>
+        ${workList(d.naofuncionou)}
+      </div>
+    </div>
+
+    <div class="twocol">
+      ${d.positivos && d.positivos.length ? `
+      <div class="card">
+        <p class="panel-title" style="color:var(--good);">Pontos positivos</p>
+        <div class="attention-list">
+          ${d.positivos.map(a=>`<div class="att-item positive"><b>${a.t}</b><br>${a.d}</div>`).join('')}
+        </div>
+      </div>` : ''}
+      <div class="card">
+        <p class="panel-title">Pontos de atenção</p>
+        <div class="attention-list">
+          ${d.atencao.map(a=>`<div class="att-item warn"><b>${a.t}</b><br>${a.d}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if(window.hourlyChartInstance){ window.hourlyChartInstance.destroy(); window.hourlyChartInstance = null; }
+  if(d.hourlyShape){
+    const canvas = document.getElementById('hourlyChart-'+d.id);
+    if(canvas){
+      const labels = d.hourlyShape.map((_,i)=>String(i).padStart(2,'0')+'h');
+      const peakIdx = d.hourlyShape.indexOf(Math.max(...d.hourlyShape));
+      window.hourlyChartInstance = new Chart(canvas, {
+        type:'line',
+        data:{
+          labels,
+          datasets:[{
+            data:d.hourlyShape,
+            borderColor:'#FFD60A',
+            backgroundColor:'rgba(255,214,10,0.12)',
+            fill:true,
+            tension:0.4,
+            pointRadius: d.hourlyShape.map((_,i)=> i===peakIdx ? 5 : 0),
+            pointBackgroundColor:'#FFD60A',
+            pointBorderColor:'#0E1A14',
+            borderWidth:2,
+          }]
+        },
+        options:{
+          responsive:true,
+          plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+          scales:{
+            x:{ ticks:{ color:'#9DB4AB', font:{size:9}, maxRotation:0, autoSkip:true, maxTicksLimit:8 }, grid:{ color:'#214238' } },
+            y:{ display:false }
+          }
+        }
+      });
+    }
+  }
+}
+
+DAILY.forEach((d,i)=>{
+  const b = document.createElement('button');
+  b.className = 'daybtn'+(i===0?' active':'');
+  b.textContent = d.label;
+  b.onclick = ()=>{
+    document.querySelectorAll('#daystrip .daybtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    renderDay(d);
+  };
+  daystrip.appendChild(b);
+});
+renderDay(DAILY[0]);
+
+
+/* ============== DOWNLOAD INFOGRAPHIC ============== */
+function downloadInfographic(d){
+  const W = 1200, H = 675;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+
+  // ── palette ──
+  const BG      = '#0E1A14';
+  const PANEL   = '#122520';
+  const PANEL2  = '#16302A';
+  const LINE    = '#214238';
+  const YELLOW  = '#FFD60A';
+  const GREEN   = '#4ADE80';
+  const RED     = '#F87171';
+  const TXT     = '#EDF3EF';
+  const DIM     = '#9DB4AB';
+  const PLAT    = {Instagram:'#E1306C',TikTok:'#a78bfa',Facebook:'#1877F2',YouTube:'#FF0000',Twitter:'#1DA1F2'};
+
+  function rr(x,y,w,h,r,fill){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+    ctx.fillStyle=fill;ctx.fill();
+  }
+
+  function txt(t,x,y,font,color,align='left',maxW){
+    ctx.font=font;ctx.fillStyle=color;ctx.textAlign=align;
+    if(maxW) ctx.fillText(t,x,y,maxW); else ctx.fillText(t,x,y);
+  }
+
+  function wrapTxt(t,x,y,maxW,lineH,font,color){
+    ctx.font=font;ctx.fillStyle=color;ctx.textAlign='left';
+    const words=t.split(' ');let line='';
+    for(const w of words){
+      const test=line?line+' '+w:w;
+      if(ctx.measureText(test).width>maxW && line){
+        ctx.fillText(line,x,y); line=w; y+=lineH;
+      } else { line=test; }
+    }
+    if(line) ctx.fillText(line,x,y);
+    return y;
+  }
+
+  // ── background ──
+  ctx.fillStyle = BG;
+  ctx.fillRect(0,0,W,H);
+
+  // ── top bar ──
+  rr(0,0,W,56,0,PANEL2);
+  ctx.fillStyle=YELLOW;ctx.fillRect(0,54,W,2);
+
+  // Logo text
+  txt('el●fe®',24,36,'bold 22px monospace','#4A6FD4');
+  txt('Monitoramento Digital · Copa do Mundo 2026',90,36,'11px monospace',DIM);
+
+  // Date label right
+  const dateLabel = d.label + ' · @TVGlobo';
+  txt(dateLabel,W-24,36,'11px monospace',DIM,'right');
+
+  // ── title ──
+  txt(d.title, 24, 90, 'bold 17px Georgia', YELLOW, 'left', W-48);
+
+  // ── LEFT COLUMN: KPI cards (x=24, w=370) ──
+  const kpis = [];
+  if(d.mencoes && d.mencoes!=='—') kpis.push(['Menções espontâneas', d.mencoes, d.mencoesDelta||'']);
+  if(d.totals){
+    kpis.push(['Posts publicados', d.totals.posts, d.totals.deltas?.posts||'']);
+    kpis.push(['Interações', d.totals.interacoes, d.totals.deltas?.interacoes||'']);
+    kpis.push(['Views', d.totals.views, d.totals.deltas?.views||'']);
+    kpis.push(['Alcance IG+FB', d.totals.alcance, d.totals.deltas?.alcance||'']);
+  }
+
+  const kpiCols = 2;
+  const kpiW = 176, kpiH = 68, kpiGap = 8;
+  const kpiStartX = 24, kpiStartY = 108;
+
+  kpis.slice(0,6).forEach((k,i)=>{
+    const col = i % kpiCols;
+    const row = Math.floor(i / kpiCols);
+    const x = kpiStartX + col*(kpiW+kpiGap);
+    const y = kpiStartY + row*(kpiH+kpiGap);
+    rr(x,y,kpiW,kpiH,8,PANEL);
+    // yellow border for totals (index 1+)
+    if(i>=1){ ctx.strokeStyle='rgba(255,214,10,0.3)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(x,y,kpiW,kpiH,8);ctx.stroke(); }
+    txt(k[0].toUpperCase(),x+10,y+18,'9px monospace',DIM);
+    txt(k[1],x+10,y+46,'bold 20px Georgia',TXT);
+    if(k[2] && k[2]!=='—'){
+      const dcolor = k[2].startsWith('+') ? GREEN : RED;
+      txt(k[2]+' vs anterior',x+10,y+62,'9px monospace',dcolor);
+    }
+  });
+
+  // ── PLATFORMS (below KPIs) ──
+  const platY = kpiStartY + Math.ceil(kpis.slice(0,6).length/2)*(kpiH+kpiGap) + 14;
+  txt('PLATAFORMAS',kpiStartX,platY,'bold 9px monospace',DIM);
+
+  const platMaxW = 360;
+  d.plataformas.slice(0,5).forEach((p,i)=>{
+    const py = platY+14+i*30;
+    const pname = p.n;
+    const pval = p.v;
+    const pmax = p.max || Math.max(...d.plataformas.map(x=>x.v));
+    const barW = Math.max(2, Math.round((pval/pmax)*platMaxW*0.65));
+    const pcolor = PLAT[pname]||'#888';
+    txt(pname,kpiStartX,py+12,'bold 10px monospace',pcolor);
+    rr(kpiStartX+80,py,barW,14,3,pcolor+'55');
+    rr(kpiStartX+80,py,barW,14,3,pcolor);
+
+    // interactions label
+    const int_label = p.interacoes||'';
+    txt(int_label,kpiStartX+80+barW+8,py+12,'10px monospace',TXT);
+  });
+
+  // ── MIDDLE COLUMN: Top 3 posts (x=390, w=420) ──
+  const midX = 390, midW = 420;
+  rr(midX,108,midW,H-120,8,PANEL);
+  txt('TOP 3 POSTS DO DIA',midX+14,132,'bold 9px monospace',DIM);
+
+  const topThree = d.topPosts.slice(0,3);
+  topThree.forEach((p,i)=>{
+    const py = 148+i*158;
+    // rank badge
+    rr(midX+14,py,28,28,6,YELLOW);
+    txt(String(i+1),midX+28,py+19,'bold 14px monospace','#0E1A14','center');
+
+    // platform chip
+    const pname = p[0].split(' ')[0];
+    const pcolor = PLAT[pname]||'#888';
+    rr(midX+50,py,70,20,10,pcolor+'33');
+    ctx.strokeStyle=pcolor+'88';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(midX+50,py,70,20,10);ctx.stroke();
+    txt(pname,midX+85,py+14,'bold 8px monospace',pcolor,'center');
+
+    // time + metrics
+    const timeStr = p[0].split(' ')[1]||'';
+    txt(timeStr+' · '+p[1],midX+128,py+14,'10px monospace',DIM,'left',midW-145);
+
+    // text snippet
+    const snippet = p[2].length>110 ? p[2].slice(0,107)+'...' : p[2];
+    wrapTxt(snippet,midX+14,py+48,midW-28,18,'12px Georgia',TXT);
+
+    // divider (not after last)
+    if(i<2){ ctx.strokeStyle=LINE;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(midX+14,py+142);ctx.lineTo(midX+midW-14,py+142);ctx.stroke(); }
+  });
+
+  // ── RIGHT COLUMN: Insights (x=830, w=346) ──
+  const rX = 830, rW = W-rX-24;
+
+  // Aprendizados
+  rr(rX,108,rW,200,8,PANEL);
+  txt('APRENDIZADOS',rX+14,130,'bold 9px monospace',DIM);
+  const aprendizado = d.aprendizados||'Sem aprendizados registrados.';
+  wrapTxt(aprendizado,rX+14,150,rW-28,17,'11px system-ui',TXT);
+
+  // O que funcionou
+  rr(rX,318,rW,170,8,PANEL);
+  ctx.fillStyle='rgba(74,222,128,0.15)';ctx.fillRect(rX,318,4,170);
+  txt('O QUE FUNCIONOU',rX+14,340,'bold 9px monospace',GREEN);
+  const func = d.funcionou||[];
+  func.slice(0,3).forEach(([titulo],i)=>{
+    const fy = 358+i*40;
+    ctx.fillStyle=GREEN;ctx.fillRect(rX+14,fy-4,4,4);
+    wrapTxt(titulo,rX+24,fy+8,rW-38,15,'bold 10px system-ui',TXT);
+  });
+
+  // O que não funcionou
+  rr(rX,498,rW,165,8,PANEL);
+  ctx.fillStyle='rgba(248,113,113,0.15)';ctx.fillRect(rX,498,4,165);
+  txt('O QUE NÃO FUNCIONOU',rX+14,518,'bold 9px monospace',RED);
+  const nfunc = d.naofuncionou||[];
+  nfunc.slice(0,3).forEach(([titulo],i)=>{
+    const nfy = 536+i*40;
+    ctx.fillStyle=RED;ctx.fillRect(rX+14,nfy-4,4,4);
+    wrapTxt(titulo,rX+24,nfy+8,rW-38,15,'bold 10px system-ui',TXT);
+  });
+
+  // ── bottom bar ──
+  ctx.fillStyle=LINE;ctx.fillRect(0,H-24,W,1);
+  txt('Fonte: Brandwatch · Emplifi · TikTok Business · YouTube Studio',24,H-8,'9px monospace',DIM);
+  txt('elife.com.br',W-24,H-8,'9px monospace',DIM,'right');
+
+  // ── export ──
+  const link = document.createElement('a');
+  link.download = `Infografico_Copa_Globo_${d.id}.png`;
+  link.href = cv.toDataURL('image/png');
+  link.click();
+}
+
+
+
+async function downloadPDF(view, filename){
+  const btn = event.currentTarget;
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Gerando PDF...';
+
+  const toggle = document.querySelector('.view-toggle');
+  const daystrip = document.getElementById('daystrip');
+  const dailyView = document.getElementById('daily-view');
+  const isDaily = view === 'daily';
+
+  const hidden = [];
+  function hide(el){ if(el){ hidden.push([el, el.style.display]); el.style.display='none'; } }
+
+  hide(toggle);
+  hide(daystrip);
+  hide(document.getElementById('daystrip'));
+
+  const headerDisplay = btn.style.display;
+  btn.style.display = 'none';
+
+  try{
+    const target = document.querySelector('.wrap');
+    const canvas = await html2canvas(target, {
+      backgroundColor: '#0E1A14',
+      scale: 2,
+      useCORS: true
+    });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+
+    const pageWidth = 595.28;
+    const pageHeight = 841.89;
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(filename + '.pdf');
+  }catch(err){
+    console.error('Erro ao gerar PDF:', err);
+    alert('Não foi possível gerar o PDF. Tente novamente.');
+  }finally{
+    hidden.forEach(([el, disp])=>{ el.style.display = disp; });
+    btn.style.display = headerDisplay;
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
+
+</script>
+</body>
+</html>
