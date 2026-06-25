@@ -256,13 +256,30 @@ function parseCSV(text){
 /* ============== FETCH ALL SHEETS ============== */
 let DAILY = [];
 
+async function fetchSheet(name, url){
+  // Try direct first, then via CORS proxy
+  const proxies = [
+    url,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
+  for(const u of proxies){
+    try{
+      const r = await fetch(u);
+      if(!r.ok) continue;
+      const t = await r.text();
+      if(t && t.includes(',')) return [name, parseCSV(t)];
+    } catch(e){ continue; }
+  }
+  console.warn(`Falha ao carregar ${name}`);
+  return [name, []];
+}
+
 async function fetchAll(){
   showLoading(true);
   try{
     const fetches = await Promise.all(
-      Object.entries(SHEET_URLS).map(([k,url])=>
-        fetch(url).then(r=>r.text()).then(t=>([k, parseCSV(t)]))
-      )
+      Object.entries(SHEET_URLS).map(([k,url])=> fetchSheet(k, url))
     );
     const sheets = Object.fromEntries(fetches);
     buildDAILY(sheets);
@@ -289,8 +306,18 @@ function showLoading(show){
 
 /* ============== BUILD DAILY FROM SHEETS ============== */
 function buildDAILY(sheets){
+  // Debug: log what we received
+  console.log('Sheets loaded:', Object.fromEntries(Object.entries(sheets).map(([k,v])=>[k,v.length+' rows'])));
+
   // Get unique dates in order from DIARIO sheet
   const dates = [...new Set(sheets.DIARIO.map(r=>r.data))].filter(Boolean);
+  console.log('Dates found:', dates);
+
+  if(dates.length === 0){
+    document.getElementById('daily-content').innerHTML =
+      '<div style="padding:40px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--txt-dim)">Nenhum dado encontrado na planilha DIARIO. Verifique se a coluna "data" está preenchida no formato DD/MM.</div>';
+    return;
+  }
 
   // Helper: filter rows by date
   const byDate = (sheet,date) => (sheets[sheet]||[]).filter(r=>r.data===date);
