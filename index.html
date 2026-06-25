@@ -447,20 +447,21 @@ function buildDAILY(sheets){
       tts_brasil:   d.tts_brasil||'—',
       tts_mundo:    d.tts_mundo||'—',
       hourlyHighlight,
-      hourlyData,
-      tagsConcorrencia: tags,
-      mencoes_jogos,
-      trendingTopics: tts,
-      googleTrends: trends,
-      plataformas,
-      topPosts,
-      bottomPosts,
-      funcionou,
-      naofuncionou,
-      positivos,
-      atencao,
-      aprendizados: aprendizado.texto||'',
-      totals: totalsObj,
+      hourlyData:      hourlyData||[],
+      tagsConcorrencia: tags||[],
+      mencoesJogos:    mencoes_jogos||[],
+      trendingTopics:  tts||[],
+      googleTrends:    trends||[],
+      plataformas:     plataformas||[],
+      talentos:        [],
+      topPosts:        topPosts||[],
+      bottomPosts:     bottomPosts||[],
+      funcionou:       funcionou||[],
+      naofuncionou:    naofuncionou||[],
+      positivos:       positivos||[],
+      atencao:         atencao||[],
+      aprendizados:    aprendizado.texto||'',
+      totals:          totalsObj,
     };
   });
 
@@ -563,22 +564,22 @@ function renderDay(d){
       <div class="card" style="border-color:rgba(255,214,10,.25);">
         <p class="stat-label">Posts (todos formatos)</p>
         <p class="stat-value">${d.totals.posts}</p>
-        ${d.totals.deltas && d.totals.deltas.posts ? `<p class="stat-sub ${d.totals.deltas.posts.startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.posts} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
+        ${d.totals.deltas && d.totals.deltas.posts ? `<p class="stat-sub ${(d.totals.deltas?.posts||'').startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.posts} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
       </div>
       <div class="card" style="border-color:rgba(255,214,10,.25);">
         <p class="stat-label">Interações totais</p>
         <p class="stat-value">${d.totals.interacoes}</p>
-        ${d.totals.deltas && d.totals.deltas.interacoes ? `<p class="stat-sub ${d.totals.deltas.interacoes.startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.interacoes} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
+        ${d.totals.deltas && d.totals.deltas.interacoes ? `<p class="stat-sub ${(d.totals.deltas?.interacoes||'').startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.interacoes} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
       </div>
       <div class="card" style="border-color:rgba(255,214,10,.25);">
         <p class="stat-label">Views totais</p>
         <p class="stat-value">${d.totals.views}</p>
-        ${d.totals.deltas && d.totals.deltas.views ? `<p class="stat-sub ${d.totals.deltas.views.startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.views} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
+        ${d.totals.deltas && d.totals.deltas.views ? `<p class="stat-sub ${(d.totals.deltas?.views||'').startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.views} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
       </div>
       <div class="card" style="border-color:rgba(255,214,10,.25);">
         <p class="stat-label">Alcance (IG + FB)</p>
         <p class="stat-value">${d.totals.alcance}</p>
-        ${d.totals.deltas && d.totals.deltas.alcance ? `<p class="stat-sub ${d.totals.deltas.alcance.startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.alcance} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
+        ${d.totals.deltas && d.totals.deltas.alcance ? `<p class="stat-sub ${(d.totals.deltas?.alcance||'').startsWith('+') ? 'delta-up' : 'delta-down'}">${d.totals.deltas.alcance} vs dia anterior</p>` : '<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}
       </div>
     </div>` : ''}
 
@@ -590,12 +591,12 @@ function renderDay(d){
       </div>
       <div class="card">
         <p class="panel-title">Comparativo de tags — concorrência</p>
-        ${d.tagsConcorrencia && d.tagsConcorrencia.length ? d.tagsConcorrencia.map(([n,c])=>`
+        ${d.tagsConcorrencia && (d.tagsConcorrencia||[]).length ? (d.tagsConcorrencia||[]).map(([n,c])=>`
           <div class="tag-row"><span class="tag-name">${n}</span><span class="tag-count">${c} depoimentos</span></div>
         `).join('') : '<p class="no-data">Dado não disponível.</p>'}
-        ${d.mencoesJogos && d.mencoesJogos.length ? `
+        ${d.mencoesJogos && (d.mencoesJogos||[]).length ? `
         <p class="panel-title" style="margin-top:16px;font-size:14px;">Menções por partida</p>
-        ${d.mencoesJogos.map(([j,c])=>`<div class="vs-row"><span>${j}</span><span>${c} menções</span></div>`).join('')}
+        ${(d.mencoesJogos||[]).map(([j,c])=>`<div class="vs-row"><span>${j}</span><span>${c} menções</span></div>`).join('')}
         ` : ''}
       </div>
     </div>
@@ -603,17 +604,17 @@ function renderDay(d){
     <div class="row2">
       <div class="card">
         <p class="panel-title">Trending Topics</p>
-        ${d.trendingTopics && d.trendingTopics.length ? `
+        ${d.trendingTopics && (d.trendingTopics||[]).length ? `
         <table class="tt-table">
           <thead><tr><th>#</th><th>Termo</th><th>Mundo</th><th>Brasil</th></tr></thead>
           <tbody>
-            ${d.trendingTopics.map(t=>`<tr><td>${t.pos}º</td><td>${t.nome}</td><td class="num">${t.mundo}</td><td class="num">${t.brasil}</td></tr>`).join('')}
+            ${(d.trendingTopics||[]).map(t=>`<tr><td>${t.pos}º</td><td>${t.nome}</td><td class="num">${t.mundo}</td><td class="num">${t.brasil}</td></tr>`).join('')}
           </tbody>
         </table>` : '<p class="no-data">Dado não disponível para este dia.</p>'}
       </div>
       <div class="card">
         <p class="panel-title">Google Trends</p>
-        ${d.googleTrends && d.googleTrends.length ? d.googleTrends.map((g,i)=>`
+        ${d.googleTrends && (d.googleTrends||[]).length ? (d.googleTrends||[]).map((g,i)=>`
           <div class="gtrend-row">
             <span class="gtrend-pos">${i+1}º</span>
             <span class="gtrend-term">${g[0]}</span>
@@ -631,14 +632,14 @@ function renderDay(d){
       <div class="card">
         <p class="panel-title">Talentos mais citados</p>
         <ul class="clean">
-          ${d.talentos.map(([n,c])=>`<li><span class="tname">${n}</span><span class="tcount">${c} depoimentos</span></li>`).join('')}
+          ${(d.talentos||[]).map(([n,c])=>`<li><span class="tname">${n}</span><span class="tcount">${c} depoimentos</span></li>`).join('')}
         </ul>
       </div>
     </div>
 
     <div class="card" style="margin-bottom:14px;">
       <p class="panel-title">Top 10 posts do dia</p>
-      ${d.topPosts.map((p,i)=>`
+      ${(d.topPosts||[]).map((p,i)=>`
         <div class="toppost">
           <div class="rank">${String(i+1).padStart(2,'0')}</div>
           <div>
@@ -652,7 +653,7 @@ function renderDay(d){
     ${d.bottomPosts ? `
     <div class="card" style="margin-bottom:14px;">
       <p class="panel-title" style="color:var(--bad);">Bottom 5 posts do dia <span style="font-size:11px;font-family:var(--mono);color:var(--txt-dim);font-weight:400;">Posts com ao menos 1 interação · Twitter excluído</span></p>
-      ${d.bottomPosts.map((p,i)=>`
+      ${(d.bottomPosts||[]).map((p,i)=>`
         <div class="toppost">
           <div class="rank" style="color:var(--bad);">${String(i+1).padStart(2,'0')}</div>
           <div>
@@ -675,17 +676,17 @@ function renderDay(d){
     </div>
 
     <div class="twocol">
-      ${d.positivos && d.positivos.length ? `
+      ${d.positivos && (d.positivos||[]).length ? `
       <div class="card">
         <p class="panel-title" style="color:var(--good);">Pontos positivos</p>
         <div class="attention-list">
-          ${d.positivos.map(a=>`<div class="att-item positive"><b>${a.t}</b><br>${a.d}</div>`).join('')}
+          ${(d.positivos||[]).map(a=>`<div class="att-item positive"><b>${a.t}</b><br>${a.d}</div>`).join('')}
         </div>
       </div>` : ''}
       <div class="card">
         <p class="panel-title">Pontos de atenção</p>
         <div class="attention-list">
-          ${d.atencao.map(a=>`<div class="att-item warn"><b>${a.t}</b><br>${a.d}</div>`).join('')}
+          ${(d.atencao||[]).map(a=>`<div class="att-item warn"><b>${a.t}</b><br>${a.d}</div>`).join('')}
         </div>
       </div>
     </div>
@@ -695,7 +696,7 @@ function renderDay(d){
   if(d.hourlyData){
     const canvas = document.getElementById('hourlyChart-'+d.id);
     if(canvas){
-      const labels = d.hourlyData.map((_,i)=>String(i).padStart(2,'0')+'h');
+      const labels = (d.hourlyData||[]).map((_,i)=>String(i).padStart(2,'0')+'h');
       const peakIdx = d.hourlyData.indexOf(Math.max(...d.hourlyData));
       window.hourlyChartInstance = new Chart(canvas, {
         type:'line',
@@ -707,7 +708,7 @@ function renderDay(d){
             backgroundColor:'rgba(255,214,10,0.12)',
             fill:true,
             tension:0.4,
-            pointRadius: d.hourlyData.map((_,i)=> i===peakIdx ? 5 : 0),
+            pointRadius: (d.hourlyData||[]).map((_,i)=> i===peakIdx ? 5 : 0),
             pointBackgroundColor:'#FFD60A',
             pointBorderColor:'#0E1A14',
             borderWidth:2,
@@ -835,7 +836,7 @@ function downloadInfographic(d){
     const py = platY+14+i*30;
     const pname = p.n;
     const pval = p.v;
-    const pmax = p.max || Math.max(...d.plataformas.map(x=>x.v));
+    const pmax = p.max || Math.max(...(d.plataformas||[]).map(x=>x.v));
     const barW = Math.max(2, Math.round((pval/pmax)*platMaxW*0.65));
     const pcolor = PLAT[pname]||'#888';
     txt(pname,kpiStartX,py+12,'bold 10px monospace',pcolor);
