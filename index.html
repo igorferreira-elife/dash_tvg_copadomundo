@@ -199,7 +199,7 @@
 
   <div id="daily-view">
     <div class="daystrip" id="daystrip"></div>
-    <div id="daily-content"></div>
+    <div id="daily-content"><div style="padding:60px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--txt-dim)">Carregando dados da planilha...</div></div>
   </div>
 
   <footer>
@@ -208,380 +208,242 @@
 </div>
 
 <script>
-/* ============== DADOS ============== */
-const DAILY = [
-  {
-    id:'15_06', label:'15/06', title:'15 de Junho — Bélgica x Egito / Arábia Saudita x Uruguai',
-    mencoes:'11,4 mil', mencoesDelta:'+1% vs dia anterior', contas:'7,7 mil', retweets:'75%', curtidas:'218 mil',
-    tts_brasil:'5 (3% de todos)', tts_mundo:'0',
-    totals:{posts:'378', interacoes:'532,2K', views:'18,3M', alcance:'7,9M',deltas:{posts:null,interacoes:null,views:null,alcance:null}},
-    hourlyHighlight:'Menções sobre a narração de Renata Silveira ganham destaque',
-    hourlyShape:[0.1,0.08,0.06,0.05,0.05,0.07,0.12,0.18,0.22,0.28,0.32,0.3,0.34,0.4,0.5,0.62,1,0.7,0.55,0.42,0.36,0.3,0.22,0.15],
-    tagsConcorrencia:[['#CopaNaGlobo','2.170'],['#CopaDoMundoNaCazéTV','204'],['#CopaDoMundoNoSBT','227']],
-    mencoesJogos:[['Bélgica x Egito','1 mil'], ['Arábia Saudita x Uruguai','428']],
-    trendingTopics:[
-      {pos:1, nome:'#BELxEGI', mundo:'55', brasil:'-'},
-      {pos:2, nome:'#ARSxURU', mundo:'50', brasil:'-'},
-      {pos:3, nome:'#SUExTUN', mundo:'32', brasil:'-'},
-      {pos:4, nome:'#CMAxEQU', mundo:'14', brasil:'-'},
-      {pos:5, nome:'Bélgica x Egito', mundo:'6', brasil:'-'},
-    ],
-    googleTrends:[],
-    plataformas:[
-      {n:'Instagram', v:264600, max:300000},
-      {n:'Facebook', v:90000, max:300000},
-      {n:'Twitter', v:30000, max:300000},
-      {n:'TikTok', v:72300, max:300000},
-    ],
-    talentos:[['Renata Silveira','1,2 mil'],['Everaldo M.','139'],['Paulo Andrade','99'],['Denílson','164']],
-    topPosts:[
-      ['TikTok 11:33','72,3K · 1,5M views',"6 estrelas só o brasil depois que buscar esse hexa! título de copa africana de nações não vale...",'https://www.tiktok.com/@tvglobo/video/7651630315013688596?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['TikTok 21:33','51,6K · 468,1K views',"vem aí mais uma princesinha da vila! neymar e bruna biancardi anunciaram que vão ser papais...",'https://www.tiktok.com/@tvglobo/video/7651784768803163410?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Instagram 21:33','36,8K · 1,0M views',"vem aí mais uma princesinha da vila! neymar e bruna biancardi anunciaram que vão ser papais...",'https://www.instagram.com/reel/DZoHRNJAFKb/'],
-      ['TikTok 15:26','36,7K · 321,7K views',"acabouuuuu!!!!! o futebol é emocionante!!!! é a história sendo escrita! primeira copa de cabo verde...",'https://www.tiktok.com/@tvglobo/video/7651690279916981525?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['TikTok 12:21','29,0K · 387,6K views',"a pergunta que não quer calar: como anda a recuperação do neymar? a expectativa é grande...",'https://www.tiktok.com/@tvglobo/video/7651642688596446471?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Instagram 11:34','25,9K · 1,3M views',"6 estrelas só o brasil depois que buscar esse hexa! título de copa africana de nações não vale...",'https://www.instagram.com/reel/DZnCu61kzL9/'],
-      ['Instagram 12:24','23,5K · 426,9K views',"a pergunta que não quer calar: como anda a recuperação do neymar? a expectativa é grande...",'https://www.instagram.com/reel/DZnIdm0khPN/'],
-      ['Instagram 17:51','20,3K · 310,1K views · 150,1K alcance',"o protagonista do dia! simplesmente vozinha, o paredão de cabo verde, é um noveleiro de primeira...",'https://www.instagram.com/p/DZnt-bXmrmZ/'],
-      ['Instagram 12:52','14,5K · 309,6K views',"meteu moral! isso aqui é brasil, tem que respeitar! em entrevista pós jogo, vini jr. ouviu o...",'https://www.instagram.com/reel/DZnLp3NjN7h/'],
-      ['Instagram 17:07','12,5K · 159,1K views · 103,5K alcance',"isso é futebol, amigos! olha a festa da torcida de cabo verde! vozinha foi o nome da emoção...",'https://www.instagram.com/reel/DZno0-6kn24/'],
-    ],
-    bottomPosts:[
-      ['Facebook 23:53','10 interações',"marca na agenda, 14 de junho dia do bruxo. é praticamente um dia de travessuras...",'https://www.facebook.com/150312925065096_1533627201753558'],
-      ['Facebook 23:58','11 interações',"vozinha você é gigante!!! viva cabo verde. só a copa do mundo para produzir histórias assim...",'https://www.facebook.com/150312925065096_1533630328419912'],
-      ['Facebook 13:59','16 interações',"eita que teve jogão holanda vs. japão. os caras entregaram muita bola e terminaram empatados...",'https://www.facebook.com/150312925065096_1533295678453377'],
-      ['Facebook 23:21','19 interações',"olha o prensadão do dia passando na sua telinha! irmão hoje teve coisa demais...",'https://www.facebook.com/150312925065096_1533608711755407'],
-      ['Facebook 20:21','23 interações',"vai achando que a arábia saudita é boba! os caras chegam preparados na copa e...",'https://www.facebook.com/150312925065096_1533511838431761'],
-    ],
-    funcionou:[
-      ['Cultura pop furou a bolha dos jogos', 'Anúncio de gravidez de Neymar dominou o Top 3, com 72,3K no TikTok — vida pessoal dos atletas compete com os jogos em atenção.'],
-      ['Vozinha: personagem que a Globo não transmitiu, mas o feed adotou', 'Jogo contra a Espanha não estava na grade, mas os posts sobre o goleiro foram os mais engajados da janela.'],
-      ['Marco histórico gerou engajamento cruzado', 'Renata Silveira como 1ª mulher a narrar Copa performou até no Twitter (6,4K), resultado atípico.'],
-    ],
-    naofuncionou:[
-      ['Twitter como diário de bordo ao vivo', '125 posts no dia, vários com 1 interação só.'],
-      ['Facebook fora do momento de gol', 'Conteúdo editorial e institucional ficou entre 30–50 interações.'],
-      ['Arábia Saudita x Uruguai no piso de engajamento', 'Sem Brasil e sem personagem de tração, a janela somou só 20,0K em 79 posts.'],
-    ],
-    positivos:[
-      {t:'Renata Silveira, primeira brasileira a narrar Copa in loco', d:'A narradora fez o jogo entre Bélgica x Egito e recebeu a homenagem do comentarista Caio Ribeiro. Usuários elogiaram a narração e as informações que ela trouxe durante a transmissão.'},
-    ],
-    atencao:[
-      {t:'Globo não transmitiu Cabo Verde x Espanha', d:'A página @futnatv afirmou que a emissora "perdeu a primeira grande história da Copa do Mundo 2026" ao não transmitir o empate de Cabo Verde com a Espanha.'},
-      {t:'Casimiro ironiza a Globo', d:'"A Globo tá passando um monte de novela, não tá passando o jogo [da Copa]."'},
-      {t:'Críticas à narração de Renata Silveira', d:'Um internauta afirmou: "Tem muito narrador mais competente que ela que merecia estar in loco no mundial."'},
-    ]
-  },
-  {
-    id:'16_06', label:'16/06', title:'16 de Junho — França x Senegal / Áustria x Jordânia',
-    mencoes:'14,8 mil', mencoesDelta:'+29% vs dia anterior (11,4 mil)', contas:'11 mil', retweets:'42%', curtidas:'128,5 mil',
-    tts_brasil:'5 (2% de todos)', tts_mundo:'-',
-    totals:{posts:'327', interacoes:'413,2K', views:'11,9M', alcance:'5,7M',deltas:{posts:'-13%',interacoes:'-22%',views:'-35%',alcance:'-28%'}},
-    hourlyHighlight:'Internautas repercutem falta de transmissão de Argentina x Argélia após hat trick de Messi',
-    hourlyShape:[0.08,0.06,0.05,0.05,0.06,0.1,0.15,0.2,0.24,0.3,0.34,0.3,0.38,0.45,0.55,0.7,0.62,1,0.5,0.4,0.32,0.26,0.18,0.12],
-    tagsConcorrencia:[['#CopaNaGlobo','1.677'],['#CopaDoMundoNaCazéTV','99'],['#CopaDoMundoNoSBT','79']],
-    mencoesJogos:[['França x Senegal','592'], ['Áustria x Jordânia','124']],
-    trendingTopics:[
-      {pos:1, nome:'#FRAxSEN', mundo:'74', brasil:'-'},
-      {pos:2, nome:'#braxmar', mundo:'47', brasil:'-'},
-      {pos:3, nome:'#ARSxURU', mundo:'18', brasil:'-'},
-      {pos:4, nome:'Áustria x Jordânia', mundo:'3', brasil:'-'},
-      {pos:5, nome:'França x Senegal', mundo:'3', brasil:'-'},
-    ],
-    googleTrends:[['frança x senegal','1 Mi'], ['áustria x jordânia','100 mil']],
-    plataformas:[
-      {n:'Instagram', v:246800, max:300000},
-      {n:'Facebook', v:60000, max:300000},
-      {n:'Twitter', v:3200, max:300000},
-      {n:'TikTok', v:92800, max:300000},
-    ],
-    talentos:[['Renata Silveira','652'],['Caio Ribeiro','184'],['Everaldo Marques','154'],['Denílson','1.194']],
-    topPosts:[
-      ['TikTok 00:19','92,8K · 982,2K views',"ooooooow modeusoooo, filho é tão bom né? a verdade é que os filhos enriquecem a vida...",'https://www.tiktok.com/@tvglobo/video/7651827555468725511?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Instagram 11:04','33,9K · 362,0K views · 237,2K alcance',"já temos o primeiro queridinho da copa? o goleiro de cabo verde josimar dias, mais conhecido como vozinha...",'https://www.instagram.com/reel/DZpkF-viWHW/'],
-      ['Instagram 00:13','26,6K · 420,3K views · 298,3K alcance',"\"grande geração belga\" chega dessa galera família, eles adiaram nosso hexa para esse ano, mas tudo...",'https://www.instagram.com/reel/DZoZf5fNF_7/'],
-      ['TikTok 00:16','26,6K · 233,3K views',"\"grande geração belga\" chega dessa galera família, eles adiaram nosso hexa para esse ano, mas tudo...",'https://www.tiktok.com/@tvglobo/video/7651826827656203527?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Instagram 00:06','23,4K · 819,7K views · 538,1K alcance',"ooooooow modeusoooo, filho é tão bom né? a verdade é que os filhos enriquecem a vida de qualquer...",'https://www.instagram.com/reel/DZoYvPItfRY/'],
-      ['Instagram 13:04','19,9K · 194,3K views · 132,0K alcance',"a legenda fica por conta de vocês... hoje é dia de apreciar de perto a qualidade de seleção francesa...",'https://www.instagram.com/reel/DZpx50UDCko/'],
-      ['Instagram 15:32','16,7K · 134,2K views · 98,0K alcance',"alô, endrick? tá podendo falar? o porchat deixou um recadinho pra você com vários conselhos...",'https://www.instagram.com/reel/DZqCyouk82B/'],
-      ['TikTok 11:16','16,3K · 333,1K views',"bora de notícias da nossa seleção brasileira? karine alves trouxe todas as novidades, inclusive...",'https://www.tiktok.com/@tvglobo/video/7651997010085612820?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Instagram 00:11','11,4K · 191,4K views · 143,0K alcance',"tiago mito medeiros nas ruas de miami. o homem tá vivendo a copa como ninguém, mas contem aí...",'https://www.instagram.com/reel/DZoZKXotPj_/'],
-      ['Instagram 20:49','11,3K · 463,1K views · 257,0K alcance',"copa é só de 4 em 4 anos, deixa pra dormir depois de 19 de julho! bora de áustria x jordânia...",'https://www.instagram.com/reel/DZqnCrwR_O6/'],
-    ],
-    bottomPosts:[
-      ['Facebook 20:53','5 interações',"o que esses caras devem estar felizes não é brincadeira não! a jordânia está disputando sua primeira...",'https://www.facebook.com/150312925065096_1534406421675636'],
-      ['Facebook 00:08','18 interações',"rodada recheada de gol, é dessa copa que a gente gosta! qual gol mais bonito...",'https://www.facebook.com/150312925065096_1533636201752658'],
-      ['Facebook 20:56','18 interações',"acertô, mizeravi! se é jogo de copa, é jogo grande!!! vem ver áustria x jordânia...",'https://www.facebook.com/150312925065096_1534408545008757'],
-      ['Facebook 11:30','19 interações',"nada de jogo fácil! bélgica e egito estrearam na copa e também ficaram no empate...",'https://www.facebook.com/150312925065096_1534055448377400'],
-      ['Facebook 20:29','20 interações',"bon après-midi, mes amis. se ligou no papo do petit cheval? ééééé...",'https://www.facebook.com/150312925065096_1534393828343562'],
-    ],
-    funcionou:[
-      ['Extracampo bateu os jogos pelo 2º dia', 'Filho de Neymar e Bruna Biancardi liderou; humor e fofoca respondem tanto quanto lances.'],
-      ['Vozinha durou além do jogo', '2 dias depois da estreia, reel sobre o goleiro chegou a 33,9K.'],
-      ['Torcida senegalesa como gancho cultural', 'Único post sem lance direto a entrar no Top 5 da janela França x Senegal.'],
-    ],
-    naofuncionou:[
-      ['Twitter no piso histórico', '3,2K interações em 105 posts — pior resultado individual do torneio até então.'],
-      ['Facebook abaixo em todos os posts', '5 piores do dia são todos do canal, entre 5–20 interações.'],
-    ],
-    positivos:[
-      {t:'Protagonismo de Renata Silveira', d:'A estreia de Renata Silveira permaneceu repercutindo. O perfil @tracklist enfatizou o feito "histórico", gerando 21,9 mil interações no X.'},
-    ],
-    atencao:[
-      {t:'Perda do direito de transmissão da estreia da Argentina', d:'A página @futnatv gerou críticas com 19 mil interações. Ironias sobre a Globo ter escolhido Áustria x Jordânia em vez da estreia da Argentina.'},
-      {t:'Fábio Porchat no Central da Copa', d:'Telespectadores reclamaram das piadas do humorista. Um seguidor afirmou: "Essa estética ultrapassada da globo é mais irritante que as resenhadas do vampeta e do charla".'},
-    ]
-  },
-  {
-    id:'17_06', label:'17/06', title:'17 de Junho — Inglaterra x Croácia / Uzbequistão x Colômbia',
-    mencoes:'8,0 mil', mencoesDelta:'-73,8% vs dia anterior (30,6 mil)', contas:'5,5 mil', retweets:'53%', curtidas:'30,1 mil',
-    tts_brasil:'3 (2% de todos)', tts_mundo:'-',
-    totals:{posts:'556', interacoes:'682,2K', views:'15,3M', alcance:'6,8M',deltas:{posts:'+70%',interacoes:'+65%',views:'+29%',alcance:'+19%'}},
-    hourlyHighlight:'Portais divulgaram que, apesar do bom desempenho da Cazé TV, a liderança em audiência segue pertencendo à Globo',
-    hourlyShape:[0.1,0.07,0.05,0.05,0.06,0.09,0.14,0.2,0.25,0.3,0.34,0.4,0.5,0.62,0.78,1,0.85,0.6,0.45,0.35,0.28,0.2,0.14,0.1],
-    tagsConcorrencia:[['#CopaNaGlobo','1,4 mil'],['#CopaDoMundoNaCazéTV','11'],['#CopaDoMundoNoSBT','0']],
-    mencoesJogos:[['Inglaterra x Croácia','181'], ['Uzbequistão x Colômbia','158']],
-    trendingTopics:[
-      {pos:1, nome:'#INGxCRO', mundo:'62', brasil:'-'},
-      {pos:2, nome:'Inglaterra x Croácia', mundo:'11', brasil:'-'},
-      {pos:3, nome:'#UZBxCOL', mundo:'9', brasil:'-'},
-    ],
-    googleTrends:[['uzbequistão x colômbia','500 mil'], ['inglaterra e croácia','200 mil']],
-    plataformas:[
-      {n:'Instagram', v:388100, max:400000},
-      {n:'TikTok', v:264600, max:400000},
-      {n:'Twitter', v:19200, max:400000},
-      {n:'Facebook', v:40000, max:400000},
-    ],
-    talentos:[['Renata Silveira','482'],['Villani','73'],['Everaldo Marques','73'],['Paulo Andrade','62']],
-    topPosts:[
-      ['TikTok 15:44','142,6K · 1,0M views',"amigo dos meus meninos é meu amigo também, pô! modric vai tá na tela da globo...",'https://www.tiktok.com/@tvglobo/video/7652437012770802951?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Instagram 18:15','67,7K · 546,8K views · 356,1K alcance',"ele literalmente sobe o nível! na beleza e na qualidade... bellingham já chegou marcando...",'https://www.instagram.com/reel/DZs6LA5xZmZ/'],
-      ['Instagram 16:05','62,0K · 1,8M views · 1,0M alcance',"amigo dos meus meninos é meu amigo também, pô! modric vai tá na tela da globo...",'https://www.instagram.com/reel/DZsrKv-xzN0/'],
-      ['Instagram 15:22','58,9K · 1,2M views · 773,1K alcance',"isso é rolê do bruxo minha gente! a gente nunca espera e ele sempre aparece com uma nova...",'https://www.instagram.com/reel/DZsmU4hxZvV/'],
-      ['TikTok 15:46','50,6K · 242,7K views',"seria esse o verdadeiro hino da inglaterra? a partir das 16h30, você curte inglaterra x croácia...",'https://www.tiktok.com/@tvglobo/video/7652437584940961031?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['TikTok 02:29','30,4K · 289,5K views',"estamos acordadíssimos e atentíssimos. tem golaço na madrugada, sim! áustria 1 x 1 jordânia...",'https://www.tiktok.com/@tvglobo/video/7652232139349445896?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Instagram 15:02','26,3K · 408,2K views · 214,7K alcance',"é oficial, família! deixa o menino ney brincar! nosso camisa 10 está treinando de vez...",'https://www.instagram.com/reel/DZskJOvxy9i/'],
-      ['Instagram 20:42','15,6K · 350,5K views · 167,6K alcance',"pare tudo o que você está fazendo e apenas veja o reconhecimento mútuo entre craques geracionais...",'https://www.instagram.com/reel/DZtK8zcRlkX/'],
-      ['Instagram 12:23','10,7K · 254,1K views · 135,0K alcance',"habemus camisa 10 em campo! 1 mês após a lesão, neymar voltou aos treinamentos...",'https://www.instagram.com/reel/DZsR7_mxqYq/'],
-      ['Instagram 00:42','10,5K · 204,4K views · 118,0K alcance',"estamos presenciando a história sendo escrita. vocês têm noção? o gigante lionel messi...",'https://www.instagram.com/p/DZrBz-fDXFZ/'],
-    ],
-    bottomPosts:[
-      ['TikTok 23:53','2 interações',"o torcedor menos fanático da colômbia agora...",'https://www.tiktok.com/@tvglobo/video/7652563054969834759?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['TikTok 17:53','14 interações',"quando o assunto é fanatismo, os ingleses não brincam em serviço!",'https://www.tiktok.com/@tvglobo/video/7652470407009799431?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Facebook 16:22','20 interações',"será que finalmente a seleção inglesa vai fazer o futebol voltar pra casa?",'https://www.facebook.com/150312925065096_1535145151601763'],
-      ['Facebook 18:59','21 interações',"raaaaashford! entrou no segundo tempo pra fazer mais um! a inglaterra...",'https://www.facebook.com/150312925065096_1535233948259550'],
-      ['Facebook 02:33','21 interações',"os valentes, os nobres, os cavalheiros. assim é conhecida a seleção da jordânia...",'https://www.facebook.com/150312925065096_1534601201656158'],
-    ],
-    funcionou:[
-      ['Ídolos globais como motor de engajamento', 'Bellingham, Modric e Messi dominaram os rankings independentemente do resultado em campo.'],
-      ['Seleção Brasileira traz tração mesmo sem jogar', '"Rolê do Bruxo" e retorno de Neymar aos treinos ficaram no Top 10.'],
-      ['Humor na madrugada salvou Áustria x Jordânia', 'Reel "acordadíssimos e atentíssimos" (30,4K) foi de longe o melhor post da madrugada.'],
-    ],
-    naofuncionou:[
-      ['Twitter como teletexto ao vivo', '215 posts, vários com 1 interação; só funcionou com humor ou dado surpreendente.'],
-      ['Conteúdo genérico de torcida no TikTok', 'Vídeo de torcedores sem texto teve só 2 interações.'],
-      ['Facebook abaixo em todas as janelas', '4 dos 5 piores posts do dia são do canal.'],
-    ],
-    positivos:[
-      {t:'Liderança de audiência', d:'@choquei (2,9 mil interações) destaca a liderança de audiência da Globo durante a Copa.'},
-      {t:'Desejo de exclusividade', d:'Usuária com 6 mil interações deseja que a Globo tenha todos os jogos da próxima Copa do Mundo.'},
-    ],
-    atencao:[
-      {t:'"Maior mancha esportiva"', d:'Reclamação com 1,2 mil interações classifica como a "maior mancha esportiva" a Globo não ter transmitido a estreia de CR7 e Messi.'},
-      {t:'Elogios à cobertura da Cazé TV', d:'Comentários elogiam a qualidade da cobertura, das exclusivas e da equipe de reportagem da Cazé TV.'},
-    ]
-  },
-  {
-    id:'18_06', label:'18/06', title:'18 de Junho — Suíça x Bósnia / México x Coreia do Sul',
-    mencoes:'6,7 mil', mencoesDelta:'-15,5% vs dia anterior (8 mil)', contas:'4,3 mil', retweets:'55%', curtidas:'126,7 mil',
-    tts_brasil:'6 (3,5% de todos)', tts_mundo:'1 (0,5%)',
-    totals:{posts:'548', interacoes:'546,8K', views:'15,6M', alcance:'5,7M',deltas:{posts:'-1%',interacoes:'-20%',views:'+2%',alcance:'-16%'}},
-    hourlyHighlight:'O início da partida entre México e Coreia do Sul agitou as menções compartilhadas por espectadores, que comunicaram sua torcida',
-    hourlyShape:[0.09,0.06,0.05,0.05,0.07,0.1,0.16,0.22,0.27,0.32,0.36,0.4,0.46,0.52,0.6,0.7,1,0.82,0.6,0.46,0.36,0.28,0.18,0.12],
-    tagsConcorrencia:[['#CopaNaGlobo','1.555'],['#CopaDoMundoNaCazéTV','1.538'],['#CopaDoMundoNoSBT','306']],
-    mencoesJogos:[['Suíça x Bósnia e Herzegovina','726'], ['México x Coréia do Sul','942']],
-    trendingTopics:[
-      {pos:1, nome:'#MEXxCOR', mundo:'20', brasil:'23'},
-      {pos:2, nome:'#UZBxCOL', mundo:'-', brasil:'48'},
-      {pos:3, nome:'#SUIxBOS', mundo:'-', brasil:'46'},
-      {pos:4, nome:'México x Coreia', mundo:'-', brasil:'34'},
-      {pos:5, nome:'#ingxcro', mundo:'-', brasil:'34'},
-      {pos:6, nome:'#fraxsen', mundo:'-', brasil:'20'},
-    ],
-    googleTrends:[['méxico x coreia do sul','200 mil'], ['suíça x bósnia e herzegovina','200 mil'], ['suica vs bosnia','200']],
-    plataformas:[
-      {n:'Instagram', v:389400, max:400000},
-      {n:'TikTok', v:101300, max:400000},
-      {n:'Twitter', v:10800, max:400000},
-      {n:'Facebook', v:6600, max:400000},
-    ],
-    talentos:[['Renata Silveira','232'],['Denílson','51'],['Caio Ribeiro','73'],['Rogério Corrêa','68']],
-    topPosts:[
-      ['Instagram 01:29','112,4K · 990,6K views · 682,5K alcance',"alô? robozão? o porchat trouxe uma mensagenzinha de apoio pra você. fica triste não, você é o melhor...",'https://www.instagram.com/reel/DZtr3J2t7GK/'],
-      ['TikTok 09:39','61,0K · 247,1K views',"quinta é quase sexta! e é mais um dia de copa na tela da globo! bora de méxico e coreia do sul...",'https://www.tiktok.com/@tvglobo/video/7652714218235399440?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['TikTok 01:16','40,3K · 255,8K views',"vamooooos colombia! vitória dos colombianos na estreia na copa! jogo duríssimo mas...",'https://www.tiktok.com/@tvglobo/video/7652584578112081159?utm_campaign=tt4d_open_api&utm_source=6997404317372137474'],
-      ['Instagram 09:35','29,9K · 249,0K views · 173,9K alcance',"quinta é quase sexta! e é mais um dia de copa na tela da globo! bora de méxico e coreia do sul...",'https://www.instagram.com/reel/DZujiJNxtL9/'],
-      ['Instagram 01:29','26,3K · 355,9K views · 209,0K alcance',"vamooooos colombia! vitória dos colombianos na estreia na copa! jogo duríssimo mas...",'https://www.instagram.com/reel/DZtr3J2t7GK/'],
-      ['Instagram 12:28','23,8K · 840,8K views · 448,5K alcance',"nada de jogo para neymar! o camisa 10 seleção ficará em nova jersey para otimizar a fase final...",'https://www.instagram.com/reel/DZu3VdUxifs/'],
-      ['Instagram 18:22','21,1K · 158,2K views · 106,1K alcance',"você tem mais um motivo pra ver a coreia do sul em campo hoje! cho gue-sung...",'https://www.instagram.com/reel/DZvfz-_D0QO/'],
-      ['Instagram 18:18','12,7K · 90,5K views · 59,9K alcance',"tem fã do son heung-min aqui? então toma esse edit com newjeans que eu sei que vocês vão amar...",'https://www.instagram.com/reel/DZvfYIKRgJO/'],
-      ['Instagram 17:17','11,1K · 133,3K views · 99,8K alcance',"ê joguinho modorrento, hein? faz um golzinho aí, pô.",'https://www.instagram.com/reel/DZvYcB0Cc4f/'],
-      ['Instagram 10:51','10,6K · 101,4K views · 72,3K alcance',"dança y baila y ganha beijo! o @instadetiago tá vivendo essa copa do mundo como ninguém! quer entretenimento?...",'https://www.instagram.com/reel/DZusDzERPLh/'],
-    ],
-    bottomPosts:[
-      ['Facebook 18:55','3 interações',"o e.t. tá no topo! a fifa divulgou o power ranking, que vai avaliar...",'https://www.facebook.com/150312925065096_1536115531504725'],
-      ['Facebook 23:23','9 interações',"olha a análise do bruxo. no rolê de hoje, o bruxo analisou a primeira...",'https://www.facebook.com/150312925065096_1536267661489512'],
-      ['Facebook 22:49','11 interações',"o capitão tem fome de bola! são quatro copas e 144 jogos pela seleção...",'https://www.facebook.com/150312925065096_1536245248158420'],
-      ['Facebook 16:54','14 interações',"1ª rodada das zebras, senhoras e senhores! quantas histórias maravilhosas...",'https://www.facebook.com/150312925065096_1536046028178342'],
-      ['Facebook 21:52','14 interações',"se tem um povo feliz da vida é o mexicano! se liga na alegria dos torcedores...",'https://www.facebook.com/150312925065096_1536208521495426'],
-    ],
-    funcionou:[
-      ['Humor e cultura pop furaram a bolha dos jogos', 'Mensagem de Porchat para CR7 liderou com folga em dia sem jogo de peso.'],
-      ['Cruzamento com K-Pop (Cho Gue-Sung, Son Heung-min, NewJeans)', 'Gerou 21,1K e 12,6K — comunidade de cultura asiática respondeu forte.'],
-      ['Sinceridade sobre jogo sem graça', '"Joguinho modorrento" (Suíça x Bósnia) foi o melhor resultado da janela.'],
-    ],
-    naofuncionou:[
-      ['Twitter no lance a lance sem gancho', '187 posts, 10,8K interações; maioria entre 1–3 interações.'],
-      ['Suíça x Bósnia sem força própria', 'Precisou de piadas paralelas para sustentar a janela.'],
-      ['Facebook no fundo do ranking geral', '6,6K interações em 120 posts; 5 últimas posições do dia.'],
-    ],
-    positivos:[
-      {t:'Elogios a Renata Silveira', d:'Elogios consistentes à narração de Renata Silveira (@whoisjupa, 1,3 mil interações).'},
-    ],
-    atencao:[
-      {t:'Críticas a comentaristas', d:'Críticas a Felipe Bastos e Ramon Motta por excesso de opiniões pessoais nas transmissões.'},
-      {t:'Superioridade analítica da Cazé TV', d:'Usuários apontam superioridade analítica da Cazé TV (@thiagobarata87, 10,6 mil interações).'},
-      {t:'Novela vs. Copa', d:'Crítica à concorrência entre jogos e a novela "Coração Acelerado" (@RickSouza, 3,2 mil interações).'},
-    ]
-  },
-  {
-    id:'22_06', label:'19—22/06', title:'22 de Junho — Argentina x Áustria / Noruega x Senegal',
-    mencoes:'16 mil', mencoesDelta:'-12% vs dia anterior (18,2 mil)', contas:'8,3 mil', retweets:'48%', curtidas:'181,2 mil',
-    tts_brasil:'9 (5% de todos)', tts_mundo:'-',
-    totals:{posts:'729', interacoes:'605,4K', views:'19,0M', alcance:'10,4M',deltas:{posts:'+33%',interacoes:'+47%',views:'+22%',alcance:'+75%'}},
-    hourlyHighlight:'Torcedores reagem ao momento da torcida da Noruega',
-    hourlyShape:[0.12,0.08,0.06,0.05,0.06,0.1,0.15,0.2,0.26,0.3,0.34,0.4,0.46,0.52,0.6,0.68,0.78,0.7,0.6,0.5,0.4,0.32,0.5,1],
-    tagsConcorrencia:[['#CopaNaGlobo','1,5 mil'],['#CopaDoMundoNaCazéTV','1,6 mil'],['#CopaDoMundoNoSBT','264']],
-    mencoesJogos:[['Argentina x Áustria','1,6 mil'], ['Noruega x Senegal','2 mil']],
-    trendingTopics:[
-      {pos:1, nome:'#ARGxAUT', mundo:'73', brasil:'-'},
-      {pos:2, nome:'#NORxSEN', mundo:'34', brasil:'-'},
-      {pos:3, nome:'#NZLxEGI', mundo:'33', brasil:'-'},
-      {pos:4, nome:'#URUxCBV', mundo:'13', brasil:'-'},
-      {pos:5, nome:'Argentina x Áustria', mundo:'11', brasil:'-'},
-      {pos:6, nome:'#fraxsen', mundo:'10', brasil:'-'},
-      {pos:7, nome:'Jordânia x Argélia', mundo:'7', brasil:'-'},
-      {pos:8, nome:'Noruega x Senegal', mundo:'7', brasil:'-'},
-      {pos:9, nome:'Villani', mundo:'7', brasil:'-'},
-    ],
-    googleTrends:[['alex escobar passa mal ao vivo','100 mil'], ['argentina vs austria','10 mil']],
-    plataformas:[
-      {n:'Instagram', v:650500, max:700000},
-      {n:'Facebook', v:59800, max:700000},
-      {n:'Twitter', v:18200, max:700000},
-      {n:'YouTube', v:3100, max:700000},
-    ],
-    talentos:[['Alex Escobar','1.053'],['Maestro Júnior','119'],['Pedro Bassan','233'],['Denílson','176']],
-    topPosts:[
-      ['Instagram 23:54','97,8K · 993,7K views · 535,9K alcance',"que momento lindo. a seleção da noruega comemora sua vitória fazendo a remada viking. o estádio todo gritando...",'https://www.instagram.com/reel/DZ6Y_gJNDD5/'],
-      ['Instagram 16:23','84,9K · 864,1K views · 641,7K alcance',"é surreal o que é lionel messi! a história foi escrita e reescrita mais uma vez pelos pés desse gênio: 18 gols em copas!...",'https://www.instagram.com/reel/DZ5lWWrD9X3/'],
-      ['Instagram 14:16','76,0K · 838,2K views · 584,8K alcance',"sobrenatural demais pro gosto do adm kkk) mas uma coisa precisa ser dita: \"alergia à melanina\" me destruiu...",'https://www.instagram.com/reel/DZ5W0XHRsku/'],
-      ['TikTok 16:16','46,9K · 245,8K views',"é surreal o que é lionel messi! a história foi escrita e reescrita mais uma vez pelos pés desse gênio: 18 gols em copas!...",'https://www.tiktok.com/@tvglobo/video/7654300774364859665'],
-      ['Instagram 09:39','46,3K · 481,0K views · 326,9K alcance',"não é por acaso que o craque lucas paquetá foi convocado mais uma vez para jogar pela seleção!...",'https://www.instagram.com/reel/DZ43AiQx0nz/'],
-      ['Facebook 23:54','38,4K · 862,3K views',"que momento lindo. a seleção da noruega comemora sua vitória fazendo a remada viking. o estádio todo gritando...",'https://www.facebook.com/150312925065096_1539957387787206'],
-      ['Instagram 21:17','25,7K · 354,1K views · 233,6K alcance',"absolute cinema! isso aqui é genial! noruega x senegal de um jeito que você nunca viu...",'https://www.instagram.com/reel/DZ6G-EBxKbP/'],
-      ['Instagram 14:48','21,6K · 155,9K views · 109,9K alcance',"eu em 2048: faz isso com o coração do pai não, fi. o cara é de outro planeta, é bom demais ver o messi jogar...",'https://www.instagram.com/reel/DZ5akgNmBxp/'],
-      ['Instagram 15:44','20,9K · 222,6K views · 148,1K alcance',"de paul do céu!!! o homem tem o molho, né? e ele já está ao vivo na tela da globo!...",'https://www.instagram.com/reel/DZ5g_U0iKr1/'],
-      ['Instagram 20:03','12,9K · 177,3K views · 118,7K alcance',"mais um recorde para a conta! messi segue fazendo história e alcançou mais uma marca impressionante...",'https://www.instagram.com/reel/DZ5-i12NZ7g/'],
-    ],
-    bottomPosts:[
-      ['YouTube 22:41','2 interações',"o primeiro duelo em copas a gente nunca esquece! jordânia e argélia se enfrentam...",'https://www.youtube.com/watch?v=YbETbnRChQU'],
-      ['YouTube 22:04','2 interações',"vai lá reclamar com filho de odin vai!!! nor 1 x 0 sen...",'https://www.youtube.com/watch?v=pX7x5ttI-Ng'],
-      ['YouTube 20:47','2 interações',"a vaga nas oitavas pode sair hoje! uma vitória deixa a noruega ainda mais perto...",'https://www.youtube.com/watch?v=5FwEG43i2ls'],
-      ['YouTube 12:03','3 interações',"e aí quem leva essa? argentina x austria...",'https://www.youtube.com/watch?v=XASj_dQUdCA'],
-      ['YouTube 22:10','4 interações',"rola a bola é segundo tempo e os leões precisam de gol para seguir...",'https://www.youtube.com/watch?v=VsiMmO1Od5k'],
-    ],
-    funcionou:[
-      ['Humor com personalidade bateu os lances diretos', '"Sobrenatural demais" e "absolute cinema" superaram qualquer post de gol.'],
-      ['Messi como motor de engajamento em dia sem Brasil', '3 posts no Top 5; um tema sustenta vários formatos sem perder força.'],
-      ['Remada Viking na madrugada liderou o dia', 'Publicado às 23:54, terminou como post mais engajado (97,8K + 38,4K no Facebook).'],
-    ],
-    naofuncionou:[
-      ['Twitter com os mesmos temas, sem resultado', 'Posts sobre Messi tiveram só 1 interação vs 76K–84K no Instagram.'],
-      ['YouTube no fundo do ranking pelo 5º dia seguido', '142 posts e 3,1K interações; 3 piores posts do dia são do canal.'],
-    ],
-    positivos:[
-      {t:'Solidariedade a Alex Escobar', d:'Repercutiu nas redes o momento em que Alex Escobar passou mal durante uma participação ao vivo. A maior parte das manifestações foi de apoio e solidariedade ao repórter.'},
-      {t:'Elogios à reportagem sobre Vinícius Júnior', d:'A reportagem de Pedro Bassan recebeu elogios pela forma como abordou o protagonismo de Vinícius Júnior nos amistosos e no início da Copa.'},
-    ],
-    atencao:[
-      {t:'Tentativa de aproximação com os jovens', d:'Internautas repercutiram o que consideram uma tentativa da Globo de "parecer mais descolada", mas apontaram que a emissora estaria falhando em se conectar com o público jovem.'},
-      {t:'Vantagem da Cazé TV', d:'Usuários destacaram a vantagem da CazéTV por transmitir partidas gratuitamente.'},
-      {t:'Narração da Argentina criticada', d:'A narração de Villani gerou insatisfação entre internautas pela suposta exaltação excessiva da seleção argentina.'},
-    ]
-  },
-  {
-    id:'23_06', label:'23/06', title:'23 de Junho — Jordânia x Argélia / Inglaterra x Gana / Portugal x Escócia',
-    mencoes:'—', mencoesDelta:'—', contas:'—', retweets:'—', curtidas:'—',
-    tts_brasil:'—', tts_mundo:'—',
-    totals:null,
-    hourlyHighlight:null,
-    hourlyShape:null,
-    tagsConcorrencia:[],
-    mencoesJogos:[],
-    trendingTopics:[],
-    googleTrends:[],
-    plataformas:[
-      {n:'Instagram', v:368700, max:700000},
-      {n:'TikTok', v:22400, max:700000},
-      {n:'Facebook', v:0, max:700000},
-      {n:'YouTube', v:0, max:700000},
-    ],
-    talentos:[['Renata Silveira','—'],['Caio Ribeiro','—'],['Bellingham','—'],['CR7','—']],
-    topPosts:[
-      ['Instagram 14:52','38,1K · 504,5K views · 361,9K alcance',"um dia com bellingham em campo é um dia lindo! daqui a pouco ele entra em campo para inglaterra x gana...",'https://www.instagram.com/reel/DZ7_yYGRQKj/'],
-      ['Instagram 09:04','30,3K · 274,1K views · 197,2K alcance',"gabriel martinelli é um craque, isso não temos dúvida! e ele tem sede de hexa...",'https://www.instagram.com/reel/DZ7Xvhpxk20/'],
-      ['TikTok 17:10','22,4K · 184,5K views',"eu juro que não esperava um final desse numa comemoração da... inglaterra! a felicidade foi escalando demais...",'https://www.tiktok.com/@tvglobo/video/7654685477760404752'],
-      ['Instagram 21:26','21,1K · 190,3K views · 126,4K alcance',"é craque, não tem jeito! cristiano ronaldo mostrou hoje que não veio para brincar na copa do mundo...",'https://www.instagram.com/reel/DZ8s2ZHNrAj/'],
-      ['Instagram 20:59','20,1K · 291,2K views · 195,2K alcance',"neymar preocupa o técnico escocês. é pra tremer na base com a nossa seleção de superestrelas...",'https://www.instagram.com/reel/DZ8pupjtuX4/'],
-      ['Instagram 16:11','20,1K · 263,1K views · 174,5K alcance',"siiiuuuuuu. o homem, uma máquina, uma besta enjaulada! cristiano ronaldo é o único ser humano a marcar gol em 6 edições...",'https://www.instagram.com/reel/DZ8Iz88xh4r/'],
-      ['Instagram 23:15','18,5K · 414,0K views · 257,3K alcance',"o torcedor mais icônico do rd congo chega ao méxico. lumumba vea desembarcou no méxico para acompanhar a seleção...",'https://www.instagram.com/reel/DZ85N_cRfdC/'],
-      ['Instagram 16:15','16,2K · 230,9K views · 171,1K alcance',"eu juro que não esperava um final desse numa comemoração da... inglaterra! a felicidade foi escalando demais...",'https://www.instagram.com/reel/DZ8JFfmRp9B/'],
-      ['Instagram 12:51','15,3K · 147,2K views · 111,6K alcance',"não tem como não torcer pro cara. é muita humildade. é o artilheiro da copa do mundo mais pé no chão que tem?...",'https://www.instagram.com/reel/DZ7x_p9nXue/'],
-      ['Instagram 00:04','14,0K · 171,5K views · 123,8K alcance',"messi x mbappé. os dois competindo para ver quem faz mais gols. afinal, esses dois são craques de jogo...",'https://www.instagram.com/reel/DZ6Z0TXtCzP/'],
-    ],
-    bottomPosts:[
-      ['YouTube 20:58','2 interações',"vamo calibrar essa pontaria pro próximo jogo hein inglaterra!...",'https://www.youtube.com/watch?v=M6iaf2anl0s'],
-      ['YouTube 17:14','3 interações',"essa polêmica eu deixo pra vocês: tradicional em copas ou não?...",'https://www.youtube.com/watch?v=ypN0QnMT8l8'],
-      ['YouTube 17:11','4 interações',"depois de um primeiro jogo apagado, os gajos chegaram na copa e mostraram...",'https://www.youtube.com/watch?v=q9eUamwTmX4'],
-      ['YouTube 17:09','4 interações',"antoine semenyo é um cracaço de bola! o bom e novo ganês vem para...",'https://www.youtube.com/watch?v=xbGAKsVrzUE'],
-      ['YouTube 17:06','5 interações',"a dupla renata e caio já estão no frio de boston para mais uma transmissão!...",'https://www.youtube.com/watch?v=IexJ4lAXWHg'],
-    ],
-    funcionou:[
-      ['Conteúdo de Seleção antes dos jogos do dia', 'Bellingham (38,1K) e Martinelli (30,3K) publicados antes das janelas terminaram no Top 2 do dia.'],
-      ['TikTok com um post isolado liderou uma janela inteira', 'O único post de TikTok na janela de Inglaterra x Gana (22,4K) superou todos os 25 posts de Instagram do período.'],
-      ['Torcedor Lumumba Vea como personagem da janela noturna', 'Com 18,5K, rendeu mais do que qualquer post sobre o jogo em si.'],
-    ],
-    naofuncionou:[
-      ['YouTube no fundo do ranking pelo 6º dia seguido', '5 piores posts do dia são do canal, entre 2–5 interações.'],
-      ['Cobertura direta dos jogos abaixo do conteúdo de antecipação', 'Nenhum post de lance ou gol entrou no Top 5; o conteúdo preparatório superou a transmissão.'],
-    ],
-    positivos:[],
-    atencao:[
-      {t:'Sem dados de monitoramento externo', d:'Pontos de atenção e pontos positivos (Brandwatch) ainda não constam na planilha para o dia 23/06.'},
-    ]
-  },
-];
+/* ============== HELPERS (early) ============== */
+function fmt(n){
+  n = Number(n);
+  if(n>=1000000) return (n/1000000).toFixed(1).replace('.0','')+'M';
+  if(n>=1000) return (n/1000).toFixed(1).replace('.0','')+'K';
+  return n||'—';
+}
+
+/* ============== SHEET URLS ============== */
+const SHEET_URLS = {
+  DIARIO: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=2019430894&single=true&output=csv',
+  TOTALS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=569711952&single=true&output=csv',
+  PLATAFORMAS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1000593455&single=true&output=csv',
+  TOP_POSTS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1149176862&single=true&output=csv',
+  BOTTOM_POSTS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1157776679&single=true&output=csv',
+  TRENDING_TOPICS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1062669180&single=true&output=csv',
+  GOOGLE_TRENDS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=705338802&single=true&output=csv',
+  TAGS_CONCORRENCIA: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1671204729&single=true&output=csv',
+  MENCOES_JOGOS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=500061445&single=true&output=csv',
+  DIAGNOSTICO: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1741751320&single=true&output=csv',
+  PONTOS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1821918574&single=true&output=csv',
+  APRENDIZADOS: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=113428370&single=true&output=csv',
+  MENCOES_HORA: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=30729022&single=true&output=csv',
+};
+
+/* ============== CSV PARSER ============== */
+function parseCSV(text){
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).map(line=>{
+    const vals = [];
+    let cur='', inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){ inQ=!inQ; }
+      else if(ch===','&&!inQ){ vals.push(cur.trim()); cur=''; }
+      else{ cur+=ch; }
+    }
+    vals.push(cur.trim());
+    const obj={};
+    headers.forEach((h,i)=>{ obj[h]=vals[i]||''; });
+    return obj;
+  });
+}
+
+/* ============== FETCH ALL SHEETS ============== */
+let DAILY = [];
+
+async function fetchAll(){
+  showLoading(true);
+  try{
+    const fetches = await Promise.all(
+      Object.entries(SHEET_URLS).map(([k,url])=>
+        fetch(url).then(r=>r.text()).then(t=>([k, parseCSV(t)]))
+      )
+    );
+    const sheets = Object.fromEntries(fetches);
+    buildDAILY(sheets);
+    initDayStrip();
+  } catch(e){
+    console.error('Erro ao carregar planilha:', e);
+    document.getElementById('daily-content').innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--bad)">Erro ao carregar dados da planilha. Verifique a conexão e recarregue.</div>';
+  } finally{
+    showLoading(false);
+  }
+}
+
+function showLoading(show){
+  let el = document.getElementById('loading-bar');
+  if(!el){
+    el = document.createElement('div');
+    el.id='loading-bar';
+    el.style.cssText='position:fixed;top:0;left:0;width:100%;height:3px;background:var(--globo-yellow);z-index:999;transition:opacity .4s';
+    document.body.appendChild(el);
+  }
+  el.style.opacity = show?'1':'0';
+}
+
+/* ============== BUILD DAILY FROM SHEETS ============== */
+function buildDAILY(sheets){
+  // Get unique dates in order from DIARIO sheet
+  const dates = [...new Set(sheets.DIARIO.map(r=>r.data))].filter(Boolean);
+
+  // Helper: filter rows by date
+  const byDate = (sheet,date) => (sheets[sheet]||[]).filter(r=>r.data===date);
+  const first   = (sheet,date) => byDate(sheet,date)[0]||{};
+
+  // Platform colors for bar max calculation
+  const platOrder = ['Instagram','TikTok','Facebook','Twitter','YouTube'];
+
+  DAILY = dates.map(date=>{
+    const d = first('DIARIO', date);
+    const t = first('TOTALS', date);
+    const aprendizado = first('APRENDIZADOS', date);
+
+    // Plataformas
+    const platRows = byDate('PLATAFORMAS', date);
+    const platMax = Math.max(...platRows.map(r=>Number(r.interacoes)||0), 1);
+    const plataformas = platRows.map(r=>{
+      const v = Number(r.interacoes)||0;
+      return {n:r.plataforma, v, max:platMax, posts:r.posts||'', interacoes:r.interacoes||''}
+    });
+
+    // Top posts
+    const topPosts = byDate('TOP_POSTS', date)
+      .sort((a,b)=>Number(a.rank)-Number(b.rank))
+      .map(r=>[
+        r.plataforma+' '+r.horario,
+        [r.interacoes, r.views&&r.views!==''?r.views+' views':null,
+         r.alcance&&r.alcance!==''?r.alcance+' alcance':null].filter(Boolean).join(' · '),
+        r.texto,
+        r.url||''
+      ]);
+
+    // Bottom posts
+    const bottomPosts = byDate('BOTTOM_POSTS', date)
+      .sort((a,b)=>Number(a.rank)-Number(b.rank))
+      .map(r=>[
+        r.plataforma+' '+r.horario,
+        r.interacoes+' interações',
+        r.texto,
+        r.url||''
+      ]);
+
+    // Trending topics
+    const tts = byDate('TRENDING_TOPICS', date)
+      .sort((a,b)=>Number(a.posicao)-Number(b.posicao))
+      .map(r=>r.nome+(r.brasil?' — '+r.brasil+' BR':''));
+
+    // Google Trends
+    const trends = byDate('GOOGLE_TRENDS', date)
+      .sort((a,b)=>Number(a.posicao)-Number(b.posicao))
+      .map(r=>r.termo+(r.volume_buscas?' · '+Number(r.volume_buscas).toLocaleString('pt-BR'):''));
+
+    // Tags concorrencia
+    const tags = byDate('TAGS_CONCORRENCIA', date)
+      .map(r=>[r.hashtag, r.depoimentos]);
+
+    // Menções por jogo
+    const mencoes_jogos = byDate('MENCOES_JOGOS', date)
+      .map(r=>r.jogo+': '+r.mencoes+' menções');
+
+    // Diagnóstico
+    const funcionou    = byDate('DIAGNOSTICO', date).filter(r=>r.tipo==='funcionou').map(r=>[r.titulo,r.descricao]);
+    const naofuncionou = byDate('DIAGNOSTICO', date).filter(r=>r.tipo==='nao_funcionou').map(r=>[r.titulo,r.descricao]);
+
+    // Pontos
+    const positivos = byDate('PONTOS', date).filter(r=>r.tipo==='positivo').map(r=>[r.titulo,r.descricao]);
+    const atencao   = byDate('PONTOS', date).filter(r=>r.tipo==='atencao').map(r=>[r.titulo,r.descricao]);
+
+    // Menções por hora
+    const horaRows = byDate('MENCOES_HORA', date).sort((a,b)=>a.hora.localeCompare(b.hora));
+    const hourlyData  = horaRows.map(r=>Number(r.volume)||0);
+    const hourlyHighlight = horaRows.find(r=>r.nota)?.nota || '';
+
+    // Totals deltas (calculate from previous day)
+    const totalsObj = t.posts ? {
+      posts:     Number(t.posts).toLocaleString('pt-BR'),
+      interacoes: fmt(Number(t.interacoes)),
+      views:      fmt(Number(t.views)),
+      alcance:    fmt(Number(t.alcance)),
+      _raw: { posts:Number(t.posts), interacoes:Number(t.interacoes), views:Number(t.views), alcance:Number(t.alcance) }
+    } : null;
+
+    return {
+      id: date.replace('/','_'),
+      label: date,
+      title: date,
+      mencoes:      d.mencoes||'—',
+      mencoesDelta: d.mencoesDelta||'',
+      contas:       d.contas||'—',
+      retweets:     d.retweets||'—',
+      curtidas:     d.curtidas||'—',
+      tts_brasil:   d.tts_brasil||'—',
+      tts_mundo:    d.tts_mundo||'—',
+      hourlyHighlight,
+      hourlyData,
+      tagsConcorrencia: tags,
+      mencoes_jogos,
+      trendingTopics: tts,
+      googleTrends: trends,
+      plataformas,
+      topPosts,
+      bottomPosts,
+      funcionou,
+      naofuncionou,
+      positivos,
+      atencao,
+      aprendizados: aprendizado.texto||'',
+      totals: totalsObj,
+    };
+  });
+
+  // Compute deltas between consecutive days
+  for(let i=1;i<DAILY.length;i++){
+    const curr = DAILY[i].totals?._raw;
+    const prev = DAILY[i-1].totals?._raw;
+    if(curr && prev){
+      const pct = (c,p) => p>0 ? (((c-p)/p)*100).toFixed(0)+'%' : null;
+      DAILY[i].totals.deltas = {
+        posts:     pct(curr.posts,     prev.posts),
+        interacoes:pct(curr.interacoes,prev.interacoes),
+        views:     pct(curr.views,     prev.views),
+        alcance:   pct(curr.alcance,   prev.alcance),
+      };
+    }
+  }
+  if(DAILY[0]?.totals) DAILY[0].totals.deltas = {posts:null,interacoes:null,views:null,alcance:null};
+}
+
+/* ============== INIT ============== */
+function initDayStrip(){
+  const daystrip = document.getElementById('daystrip');
+  daystrip.innerHTML = '';
+  DAILY.forEach((d,i)=>{
+    const b = document.createElement('button');
+    b.className = 'daybtn'+(i===0?' active':'');
+    b.textContent = d.label;
+    b.onclick = ()=>{
+      document.querySelectorAll('#daystrip .daybtn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      renderDay(d);
+    };
+    daystrip.appendChild(b);
+  });
+  if(DAILY[0]) renderDay(DAILY[0]);
+}
+
+// Kick off
+fetchAll();
 
 
 /* ============== HELPERS ============== */
 const palette = {Instagram:'#E1306C', Facebook:'#2D6CDF', Twitter:'#1DA1F2', TikTok:'#FFD60A', YouTube:'#FF4444'};
-function fmt(n){
-  if(n>=1000000) return (n/1000000).toFixed(2).replace('.0','')+'M';
-  if(n>=1000) return (n/1000).toFixed(1).replace('.0','')+'K';
-  return n;
-}
+// fmt moved to top
 function platformRows(plats){
   return plats.map(p=>`
     <div class="platform-row">
@@ -595,11 +457,9 @@ function workList(items, cls){
 }
 
 /* ============== RENDER DAILY ============== */
-const daystrip = document.getElementById('daystrip');
-const dailyContent = document.getElementById('daily-content');
 
 function renderDay(d){
-  dailyContent.innerHTML = `
+  document.getElementById('daily-content').innerHTML = `
     <div class="content-header">
       <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">${d.title}</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -663,7 +523,7 @@ function renderDay(d){
     <div class="row2">
       <div class="card">
         <p class="panel-title">Evolução de menções por hora</p>
-        ${d.hourlyShape ? `<canvas id="hourlyChart-${d.id}"></canvas>` : '<p class="no-data">Dado não disponível para este dia.</p>'}
+        ${d.hourlyData ? `<canvas id="hourlyChart-${d.id}"></canvas>` : '<p class="no-data">Dado não disponível para este dia.</p>'}
         ${d.hourlyHighlight ? `<div class="hourly-highlight"><b>Destaque do dia · </b>${d.hourlyHighlight}</div>` : ''}
       </div>
       <div class="card">
@@ -770,22 +630,22 @@ function renderDay(d){
   `;
 
   if(window.hourlyChartInstance){ window.hourlyChartInstance.destroy(); window.hourlyChartInstance = null; }
-  if(d.hourlyShape){
+  if(d.hourlyData){
     const canvas = document.getElementById('hourlyChart-'+d.id);
     if(canvas){
-      const labels = d.hourlyShape.map((_,i)=>String(i).padStart(2,'0')+'h');
-      const peakIdx = d.hourlyShape.indexOf(Math.max(...d.hourlyShape));
+      const labels = d.hourlyData.map((_,i)=>String(i).padStart(2,'0')+'h');
+      const peakIdx = d.hourlyData.indexOf(Math.max(...d.hourlyData));
       window.hourlyChartInstance = new Chart(canvas, {
         type:'line',
         data:{
           labels,
           datasets:[{
-            data:d.hourlyShape,
+            data:d.hourlyData,
             borderColor:'#FFD60A',
             backgroundColor:'rgba(255,214,10,0.12)',
             fill:true,
             tension:0.4,
-            pointRadius: d.hourlyShape.map((_,i)=> i===peakIdx ? 5 : 0),
+            pointRadius: d.hourlyData.map((_,i)=> i===peakIdx ? 5 : 0),
             pointBackgroundColor:'#FFD60A',
             pointBorderColor:'#0E1A14',
             borderWidth:2,
@@ -804,18 +664,7 @@ function renderDay(d){
   }
 }
 
-DAILY.forEach((d,i)=>{
-  const b = document.createElement('button');
-  b.className = 'daybtn'+(i===0?' active':'');
-  b.textContent = d.label;
-  b.onclick = ()=>{
-    document.querySelectorAll('#daystrip .daybtn').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
-    renderDay(d);
-  };
-  daystrip.appendChild(b);
-});
-renderDay(DAILY[0]);
+// init handled by fetchAll()
 
 
 /* ============== DOWNLOAD INFOGRAPHIC ============== */
