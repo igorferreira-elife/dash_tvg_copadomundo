@@ -234,23 +234,44 @@ const SHEET_URLS = {
 };
 
 /* ============== CSV PARSER ============== */
+function parseNum(s){
+  // Handle BR format: 1.100 = 1100, 1.380 = 1380
+  if(!s || s===''|| s==='—') return 0;
+  // Remove thousand separators (dots in BR format) then parse
+  return Number(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+
 function parseCSV(text){
-  const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
-  return lines.slice(1).map(line=>{
+  const lines = text.trim().split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  
+  // Find the real header row: it's the first row where first cell matches
+  // known column names (data, hora, rank, etc.) — skip title/subtitle rows
+  const knownHeaders = ['data','hora','rank','plataforma','mencoes','posts','tipo','hashtag','jogo','posicao','termo'];
+  let headerIdx = 0;
+  for(let i=0; i<Math.min(5,lines.length); i++){
+    const firstCell = lines[i].split(',')[0].toLowerCase().replace(/^"|"$/g,'').trim();
+    if(knownHeaders.includes(firstCell)){
+      headerIdx = i;
+      break;
+    }
+  }
+  
+  const headers = lines[headerIdx].split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase().trim());
+  
+  return lines.slice(headerIdx+1).map(line=>{
     const vals = [];
     let cur='', inQ=false;
     for(let i=0;i<line.length;i++){
       const ch=line[i];
       if(ch==='"'){ inQ=!inQ; }
-      else if(ch===','&&!inQ){ vals.push(cur.trim()); cur=''; }
+      else if(ch===','&&!inQ){ vals.push(cur.trim().replace(/^"|"$/g,'')); cur=''; }
       else{ cur+=ch; }
     }
-    vals.push(cur.trim());
+    vals.push(cur.trim().replace(/^"|"$/g,''));
     const obj={};
     headers.forEach((h,i)=>{ obj[h]=vals[i]||''; });
     return obj;
-  });
+  }).filter(r=>Object.values(r).some(v=>v!==''));
 }
 
 /* ============== FETCH ALL SHEETS ============== */
@@ -309,8 +330,12 @@ function buildDAILY(sheets){
   // Debug: log what we received
   console.log('Sheets loaded:', Object.fromEntries(Object.entries(sheets).map(([k,v])=>[k,v.length+' rows'])));
 
-  // Get unique dates in order from DIARIO sheet
-  const dates = [...new Set(sheets.DIARIO.map(r=>r.data))].filter(Boolean);
+  // Get unique dates — try common column names
+  const dateKey = sheets.DIARIO[0] ? 
+    Object.keys(sheets.DIARIO[0]).find(k => k.toLowerCase().trim() === 'data') || Object.keys(sheets.DIARIO[0])[0]
+    : 'data';
+  console.log('Date key found:', dateKey, '| First row:', JSON.stringify(sheets.DIARIO[0]));
+  const dates = [...new Set(sheets.DIARIO.map(r=>r[dateKey]))].filter(Boolean);
   console.log('Dates found:', dates);
 
   if(dates.length === 0){
@@ -319,25 +344,35 @@ function buildDAILY(sheets){
     return;
   }
 
-  // Helper: filter rows by date
-  const byDate = (sheet,date) => (sheets[sheet]||[]).filter(r=>r.data===date);
-  const first   = (sheet,date) => byDate(sheet,date)[0]||{};
+  // Helper: filter rows by date using flexible key matching
+  const getDateKey = (sheet) => {
+    const first = (sheets[sheet]||[])[0];
+    if(!first) return 'data';
+    return Object.keys(first).find(k=>k.toLowerCase().trim()==='data') || Object.keys(first)[0];
+  };
+  const byDate = (sheet, date) => {
+    const key = getDateKey(sheet);
+    return (sheets[sheet]||[]).filter(r => (r[key]||'').trim() === date.trim());
+  };
+  const first = (sheet, date) => byDate(sheet, date)[0] || {};
 
   // Platform colors for bar max calculation
   const platOrder = ['Instagram','TikTok','Facebook','Twitter','YouTube'];
 
   DAILY = dates.map(date=>{
-    const d = first('DIARIO', date);
-    const t = first('TOTALS', date);
+    const d = first('DIARIO', date);    const t = first('TOTALS', date);
     const aprendizado = first('APRENDIZADOS', date);
 
     // Plataformas
     const platRows = byDate('PLATAFORMAS', date);
-    const platMax = Math.max(...platRows.map(r=>Number(r.interacoes)||0), 1);
-    const plataformas = platRows.map(r=>{
-      const v = Number(r.interacoes)||0;
-      return {n:r.plataforma, v, max:platMax, posts:r.posts||'', interacoes:r.interacoes||''}
-    });
+    const platMax = Math.max(...platRows.map(r=>parseNum(r.interacoes)), 1);
+    const plataformas = platRows.map(r=>({
+      n:r.plataforma,
+      v:parseNum(r.interacoes),
+      max:platMax,
+      posts:r.posts||'',
+      interacoes:r.interacoes||''
+    }));
 
     // Top posts
     const topPosts = byDate('TOP_POSTS', date)
@@ -388,16 +423,16 @@ function buildDAILY(sheets){
 
     // Menções por hora
     const horaRows = byDate('MENCOES_HORA', date).sort((a,b)=>a.hora.localeCompare(b.hora));
-    const hourlyData  = horaRows.map(r=>Number(r.volume)||0);
+    const hourlyData  = horaRows.map(r=>parseNum(r.volume));
     const hourlyHighlight = horaRows.find(r=>r.nota)?.nota || '';
 
     // Totals deltas (calculate from previous day)
     const totalsObj = t.posts ? {
-      posts:     Number(t.posts).toLocaleString('pt-BR'),
-      interacoes: fmt(Number(t.interacoes)),
-      views:      fmt(Number(t.views)),
-      alcance:    fmt(Number(t.alcance)),
-      _raw: { posts:Number(t.posts), interacoes:Number(t.interacoes), views:Number(t.views), alcance:Number(t.alcance) }
+      posts:     parseNum(t.posts).toLocaleString('pt-BR'),
+      interacoes: fmt(parseNum(t.interacoes)),
+      views:      fmt(parseNum(t.views)),
+      alcance:    fmt(parseNum(t.alcance)),
+      _raw: { posts:parseNum(t.posts), interacoes:parseNum(t.interacoes), views:parseNum(t.views), alcance:parseNum(t.alcance) }
     } : null;
 
     return {
