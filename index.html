@@ -440,242 +440,214 @@ async function downloadInfografico(dayId){
   const d=DAILY.find(x=>x.id===dayId);
   if(!d)return;
 
-  const W=540,GUTTER=24,COL=W-GUTTER*2;
+  const W=540,G=28,COL=W-G*2;
   const BG='#0E1A14',PANEL='#122520',PANEL2='#16302A',LINE='#1e3d33';
   const YELLOW='#FFD60A',GREEN='#4ADE80',RED='#F87171',BLUE='#2D6CDF';
   const TXT='#EDF3EF',DIM='#9DB4AB';
   const PLAT={Instagram:'#E1306C',TikTok:'#FFD60A',Facebook:'#2D6CDF',Twitter:'#1DA1F2',YouTube:'#FF4444'};
 
-  // --- helpers ---
   const cv=document.createElement('canvas');
-  cv.width=W;
+  cv.width=W;cv.height=100;
   const ctx=cv.getContext('2d');
 
-  // measure pass first — draw into offscreen to calc height
-  let y=0;
   function rr(x,ry,w,h,r,fill,stroke){
+    if(w<=0||h<=0)return;
     ctx.beginPath();
-    ctx.moveTo(x+r,ry);ctx.lineTo(x+w-r,ry);ctx.quadraticCurveTo(x+w,ry,x+w,ry+r);
-    ctx.lineTo(x+w,ry+h-r);ctx.quadraticCurveTo(x+w,ry+h,x+w-r,ry+h);
-    ctx.lineTo(x+r,ry+h);ctx.quadraticCurveTo(x,ry+h,x,ry+h-r);
-    ctx.lineTo(x,ry+r);ctx.quadraticCurveTo(x,ry,x+r,ry);
+    const rad=Math.min(r,w/2,h/2);
+    ctx.moveTo(x+rad,ry);ctx.lineTo(x+w-rad,ry);ctx.quadraticCurveTo(x+w,ry,x+w,ry+rad);
+    ctx.lineTo(x+w,ry+h-rad);ctx.quadraticCurveTo(x+w,ry+h,x+w-rad,ry+h);
+    ctx.lineTo(x+rad,ry+h);ctx.quadraticCurveTo(x,ry+h,x,ry+h-rad);
+    ctx.lineTo(x,ry+rad);ctx.quadraticCurveTo(x,ry,x+rad,ry);
     ctx.closePath();
     if(fill){ctx.fillStyle=fill;ctx.fill();}
     if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}
   }
-  function line(x1,y1,x2,y2,color,w=1){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=w;ctx.stroke();}
-  function txt(t,x,ty,font,color,align='left',maxW){
+  function hline(ry,color){ctx.beginPath();ctx.moveTo(G,ry);ctx.lineTo(W-G,ry);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.stroke();}
+  function t(text,x,ry,font,color,align='left',maxW){
     ctx.font=font;ctx.fillStyle=color;ctx.textAlign=align;
-    if(maxW)ctx.fillText(t,x,ty,maxW);else ctx.fillText(t,x,ty);
+    if(maxW)ctx.fillText(text,x,ry,maxW);else ctx.fillText(text,x,ry);
   }
-  function wrap(t,x,ty,maxW,lineH,font,color){
+  function wrapText(text,x,ry,maxW,lineH,font,color){
     ctx.font=font;ctx.fillStyle=color;ctx.textAlign='left';
-    const words=t.split(' ');let line_='';const lines=[];
+    const words=text.split(' ');let cur='',lines=[];
     for(const w of words){
-      const test=line_?line_+' '+w:w;
-      if(ctx.measureText(test).width>maxW&&line_){lines.push(line_);line_=w;}
-      else line_=test;
+      const test=cur?cur+' '+w:w;
+      if(ctx.measureText(test).width>maxW&&cur){lines.push(cur);cur=w;}
+      else cur=test;
     }
-    if(line_)lines.push(line_);
-    lines.forEach((l,i)=>{ctx.fillText(l,x,ty+i*lineH);});
-    return ty+lines.length*lineH;
+    if(cur)lines.push(cur);
+    lines.forEach((l,i)=>ctx.fillText(l,x,ry+i*lineH));
+    return lines.length;
   }
-  function sectionHead(label,num){
-    y+=28;
-    txt(String(num).padStart(2,'0'),GUTTER,y,'bold 11px monospace',YELLOW);
-    txt(label,GUTTER+28,y,'italic bold 22px Georgia',TXT);
-    y+=8;
-    line(GUTTER,y,W-GUTTER,y,LINE);
-    y+=20;
-  }
-  function kpiCard(label,value,delta,x,cardW){
-    const H=80;
-    rr(x,y,cardW,H,8,PANEL,LINE);
-    txt(label.toUpperCase(),x+12,y+18,'bold 9px monospace',DIM,'left',cardW-24);
-    txt(value,x+12,y+50,'bold 26px Georgia',TXT,'left',cardW-24);
-    if(delta){
-      const col=delta.startsWith('+')?GREEN:RED;
-      txt(delta,x+cardW-10,y+18,'bold 10px monospace',col,'right');
+  // measure wrap height without drawing
+  function measureWrap(text,maxW,font){
+    ctx.font=font;
+    const words=text.split(' ');let cur='',lines=1;
+    for(const w of words){
+      const test=cur?cur+' '+w:w;
+      if(ctx.measureText(test).width>maxW&&cur){lines++;cur=w;}
+      else cur=test;
     }
-    return H;
+    return lines;
   }
 
-  // ===================== RENDER =====================
-  // We'll render twice: first pass to measure H, second to actually draw
-  function render(measuring){
-    y=0;
-    if(!measuring){
-      cv.height=totalH;
-      ctx.fillStyle=BG;
-      ctx.fillRect(0,0,W,cv.height);
-      // subtle gradient top
-      const grad=ctx.createLinearGradient(0,0,0,200);
-      grad.addColorStop(0,'rgba(22,59,44,0.6)');grad.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=grad;ctx.fillRect(0,0,W,200);
-    }
+  // Build sections as objects with known heights
+  const GAP=10,KW=(COL-GAP)/2,KH=84;
+  const PLAT_H=24,PLAT_GAP=8;
+  const POST_LINE_H=16,POST_PAD=44;
+  const CARD_PAD=14,CARD_TITLE_H=20,CARD_LINE_H=15;
+  const SEC_H=60;
 
-    y+=32;
+  function cardH(title,desc){
+    const tLines=measureWrap(title,COL-28,'bold 11px system-ui');
+    const dLines=measureWrap(desc,COL-28,'11px system-ui');
+    return CARD_PAD+tLines*CARD_TITLE_H+dLines*CARD_LINE_H+CARD_PAD;
+  }
 
-    // --- LOGO AREA ---
-    rr(GUTTER,y,90,28,6,PANEL2);
-    txt('el●fe®',GUTTER+10,y+19,'bold 13px monospace','#4A6FD4');
-    txt('MONITORAMENTO DIGITAL',GUTTER+100,y+12,'bold 8px monospace',YELLOW);
-    txt('Copa do Mundo na Globo',GUTTER+100,y+24,'bold 11px Georgia',TXT);
-    y+=48;
+  // Calculate total height
+  let totalH=0;
+  totalH+=32+48+38+16+32+16; // logo+title+date+line
+  totalH+=SEC_H; // section 1
+  if(d.totals) totalH+=2*(KH+GAP)+12;
+  totalH+=SEC_H; // section 2
+  totalH+=d.plataformas.length*(PLAT_H+PLAT_GAP)+16;
+  totalH+=SEC_H; // section 3
+  d.topPosts.slice(0,3).forEach(p=>{
+    const lines=measureWrap(p[2].slice(0,90),COL,'12px system-ui');
+    totalH+=POST_PAD+lines*POST_LINE_H+20;
+  });
+  totalH+=SEC_H; // section 4
+  if(d.funcionou.length){totalH+=22;d.funcionou.forEach(([tt,dd])=>totalH+=cardH(tt,dd)+8);}
+  totalH+=12;
+  if(d.naofuncionou.length){totalH+=22;d.naofuncionou.forEach(([tt,dd])=>totalH+=cardH(tt,dd)+8);}
+  if(d.aprendizados){
+    totalH+=SEC_H;
+    const aLines=measureWrap(d.aprendizados,COL-28,'12px system-ui');
+    totalH+=CARD_PAD+aLines*16+CARD_PAD+16;
+  }
+  totalH+=56; // footer
 
-    // --- TITLE ---
-    txt('Resumo do Dia',GUTTER,y,'italic bold 32px Georgia',TXT);
-    y+=38;
-    txt(d.label+' · @TVGlobo',GUTTER,y,'12px monospace',DIM);
-    if(d.totals){
-      const posts=d.totals.posts+' posts';
-      txt(posts,W-GUTTER,y,'12px monospace',DIM,'right');
-    }
-    y+=32;
-    line(GUTTER,y,W-GUTTER,y,LINE);
-    y+=24;
+  // Now draw
+  cv.height=totalH;
+  ctx.fillStyle=BG;ctx.fillRect(0,0,W,totalH);
+  const grad=ctx.createLinearGradient(0,0,0,160);
+  grad.addColorStop(0,'rgba(22,59,44,0.7)');grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,160);
 
-    // --- SECTION 1: PANORAMA ---
-    sectionHead('Panorama Digital',1);
+  let y=32;
 
-    if(d.totals){
-      const gap=10,cw=(COL-gap)/2;
-      const kpis=[
-        ['Interações',d.totals.interacoes,d.totals.deltas?.interacoes],
-        ['Views',d.totals.views,d.totals.deltas?.views],
-        ['Alcance IG+FB',d.totals.alcance,d.totals.deltas?.alcance],
-        ['Posts',d.totals.posts,d.totals.deltas?.posts],
-      ];
-      kpis.forEach((k,i)=>{
-        const col=i%2,row=Math.floor(i/2);
-        const cx=GUTTER+col*(cw+gap),cy=y+row*(80+gap);
-        if(!measuring) kpiCard(k[0],k[1],k[2],cx,cw);
-      });
-      y+=2*(80+gap)+8;
-    }
+  // LOGO
+  rr(G,y,86,26,6,PANEL2);
+  t('el●fe®',G+8,y+17,'bold 12px monospace','#4A6FD4');
+  t('MONITORAMENTO DIGITAL',G+96,y+10,'bold 8px monospace',YELLOW);
+  t('Copa do Mundo na Globo',G+96,y+22,'bold 11px Georgia',TXT);
+  y+=48;
 
-    // --- SECTION 2: PLATAFORMAS ---
-    sectionHead('Plataformas',2);
-    d.plataformas.forEach(p=>{
-      if(!measuring){
-        txt(p.n,GUTTER,y+13,'bold 10px monospace',PLAT[p.n]||DIM);
-        const barX=GUTTER+90,barW=COL-90-60,barH=10;
-        rr(barX,y+4,barW,barH,5,PANEL2);
-        rr(barX,y+4,Math.max(4,Math.round((p.v/p.max)*barW)),barH,5,PLAT[p.n]+'aa'||DIM);
-        rr(barX,y+4,Math.max(4,Math.round((p.v/p.max)*barW)),barH,5,PLAT[p.n]||DIM);
-        txt(fmt(p.v),W-GUTTER,y+14,'bold 11px monospace',TXT,'right');
-        if(p.posts) txt(p.posts+'p',W-GUTTER-52,y+14,'10px monospace',DIM,'right');
-      }
-      y+=26;
+  // TITLE
+  t('Resumo do Dia',G,y,'italic bold 30px Georgia',TXT);
+  y+=38;
+  t(d.label+' · @TVGlobo',G,y,'11px monospace',DIM);
+  if(d.totals) t(d.totals.posts+' posts',W-G,y,'11px monospace',DIM,'right');
+  y+=16;hline(y,LINE);y+=24;
+
+  // SECTION 1 — PANORAMA
+  y+=8;t('01',''+G,y,'bold 11px monospace',YELLOW);t('Panorama Digital',G+26,y,'italic bold 20px Georgia',TXT);y+=10;hline(y,LINE);y+=18;
+
+  if(d.totals){
+    const kpis=[
+      ['Interações',d.totals.interacoes,d.totals.deltas?.interacoes],
+      ['Views',d.totals.views,d.totals.deltas?.views],
+      ['Alcance IG+FB',d.totals.alcance,d.totals.deltas?.alcance],
+      ['Posts',d.totals.posts,d.totals.deltas?.posts],
+    ];
+    kpis.forEach((k,i)=>{
+      const cx=G+(i%2)*(KW+GAP),cy=y+Math.floor(i/2)*(KH+GAP);
+      rr(cx,cy,KW,KH,8,PANEL,LINE);
+      t(k[0].toUpperCase(),cx+12,cy+18,'bold 9px monospace',DIM,'left',KW-24);
+      t(k[1]||'—',cx+12,cy+52,'bold 24px Georgia',TXT,'left',KW-60);
+      if(k[2]){const col=k[2].startsWith('+')?GREEN:RED;t(k[2],cx+KW-10,cy+18,'bold 10px monospace',col,'right');}
     });
-    y+=10;
-
-    // --- SECTION 3: TOP 3 POSTS ---
-    sectionHead('Top 3 Posts do Dia',3);
-    d.topPosts.slice(0,3).forEach((p,i)=>{
-      if(!measuring){
-        // rank badge
-        rr(GUTTER,y,28,28,6,YELLOW);
-        txt(String(i+1),GUTTER+14,y+19,'bold 14px monospace','#0E1A14','center');
-        // platform
-        const pname=p[0].split(' ')[0];
-        const pc=PLAT[pname]||'#888';
-        rr(GUTTER+36,y+4,64,20,10,pc+'22',pc+'66');
-        txt(pname,GUTTER+36+32,y+16,'bold 8px monospace',pc,'center');
-        // interacoes
-        const inter=p[1].split('·')[0].trim();
-        txt(inter,W-GUTTER,y+16,'bold 10px monospace',YELLOW,'right');
-        // texto
-        const snippet=p[2].length>72?p[2].slice(0,70)+'…':p[2];
-        wrap(snippet,GUTTER,y+38,COL,'15','12px system-ui',TXT);
-      }
-      // measure
-      const lines2=Math.ceil(((p[2].length>72?72:p[2].length)*6)/COL)+1;
-      y+=38+lines2*15+14;
-      if(!measuring) line(GUTTER,y-6,W-GUTTER,y-6,LINE);
-    });
-    y+=6;
-
-    // --- SECTION 4: DIAGNOSTICO ---
-    sectionHead('Diagnóstico do Dia',4);
-
-    // funcionou
-    if(d.funcionou.length){
-      if(!measuring){
-        txt('✔ O QUE FUNCIONOU',GUTTER,y,'bold 9px monospace',GREEN);
-      }
-      y+=18;
-      d.funcionou.forEach(([t,desc])=>{
-        if(!measuring){
-          rr(GUTTER,y,COL,0,0,null); // placeholder
-          ctx.fillStyle=GREEN+'22';
-          ctx.fillRect(GUTTER,y,3,999); // will trim
-        }
-        const descH=Math.ceil((desc.length*5.5)/COL)*15;
-        const cardH=14+16+descH+14;
-        if(!measuring){
-          rr(GUTTER,y,COL,cardH,8,PANEL2);
-          ctx.fillStyle=GREEN;ctx.fillRect(GUTTER,y,3,cardH);
-          txt(t,GUTTER+12,y+16,'bold 11px system-ui',TXT,'left',COL-24);
-          wrap(desc,GUTTER+12,y+32,COL-24,15,'11px system-ui',DIM);
-        }
-        y+=cardH+8;
-      });
-    }
-
-    y+=4;
-
-    // nao funcionou
-    if(d.naofuncionou.length){
-      if(!measuring) txt('✘ O QUE NÃO FUNCIONOU',GUTTER,y,'bold 9px monospace',RED);
-      y+=18;
-      d.naofuncionou.forEach(([t,desc])=>{
-        const descH=Math.ceil((desc.length*5.5)/COL)*15;
-        const cardH=14+16+descH+14;
-        if(!measuring){
-          rr(GUTTER,y,COL,cardH,8,PANEL2);
-          ctx.fillStyle=RED;ctx.fillRect(GUTTER,y,3,cardH);
-          txt(t,GUTTER+12,y+16,'bold 11px system-ui',TXT,'left',COL-24);
-          wrap(desc,GUTTER+12,y+32,COL-24,15,'11px system-ui',DIM);
-        }
-        y+=cardH+8;
-      });
-    }
-
-    y+=8;
-
-    // --- SECTION 5: APRENDIZADOS ---
-    if(d.aprendizados){
-      sectionHead('Aprendizados',5);
-      const aprH=Math.ceil((d.aprendizados.length*5.5)/COL)*16+28;
-      if(!measuring){
-        rr(GUTTER,y,COL,aprH,8,PANEL2,LINE);
-        ctx.fillStyle=BLUE;ctx.fillRect(GUTTER,y,3,aprH);
-        wrap(d.aprendizados,GUTTER+14,y+18,COL-28,16,'12px system-ui',TXT);
-      }
-      y+=aprH+16;
-    }
-
-    // --- FOOTER ---
-    y+=16;
-    if(!measuring){
-      line(GUTTER,y,W-GUTTER,y,LINE);
-      y+=16;
-      txt('Monitoramento Elife · Copa do Mundo 2026',GUTTER,y,'9px monospace',DIM);
-      txt('elife.com.br',W-GUTTER,y,'9px monospace',YELLOW,'right');
-    }
-    y+=32;
-    return y;
+    y+=2*(KH+GAP)+12;
   }
 
-  // measure
-  cv.height=2000;ctx.fillStyle=BG;ctx.fillRect(0,0,W,2000);
-  const totalH=render(true)+40;
+  // SECTION 2 — PLATAFORMAS
+  y+=8;t('02',''+G,y,'bold 11px monospace',YELLOW);t('Plataformas',G+26,y,'italic bold 20px Georgia',TXT);y+=10;hline(y,LINE);y+=18;
 
-  // real render
-  render(false);
+  d.plataformas.forEach(p=>{
+    const pc=PLAT[p.n]||'#888';
+    t(p.n,G,y+14,'bold 10px monospace',pc);
+    const barX=G+92,barW=COL-92-72,barH=10;
+    rr(barX,y+4,barW,barH,5,PANEL2);
+    const fill=Math.max(6,Math.round((p.v/p.max)*barW));
+    rr(barX,y+4,fill,barH,5,pc+'55');
+    rr(barX,y+4,fill,barH,5,pc);
+    t(fmt(p.v),W-G,y+14,'bold 11px monospace',TXT,'right');
+    if(p.posts)t(p.posts+'p',W-G-56,y+14,'10px monospace',DIM,'right');
+    y+=PLAT_H+PLAT_GAP;
+  });
+  y+=8;
 
-  // export
+  // SECTION 3 — TOP 3
+  y+=8;t('03',''+G,y,'bold 11px monospace',YELLOW);t('Top 3 Posts do Dia',G+26,y,'italic bold 20px Georgia',TXT);y+=10;hline(y,LINE);y+=18;
+
+  d.topPosts.slice(0,3).forEach((p,i)=>{
+    rr(G,y,28,28,6,YELLOW);
+    t(String(i+1),G+14,y+19,'bold 14px monospace','#0E1A14','center');
+    const pname=p[0].split(' ')[0];const pc=PLAT[pname]||'#888';
+    rr(G+36,y+4,68,20,10,pc+'22',pc+'66');
+    t(pname,G+36+34,y+16,'bold 8px monospace',pc,'center');
+    const inter=p[1].split('·')[0].trim();
+    t(inter,W-G,y+16,'bold 10px monospace',YELLOW,'right');
+    const snippet=p[2].length>90?p[2].slice(0,88)+'…':p[2];
+    const nLines=wrapText(snippet,G,y+POST_PAD,COL,POST_LINE_H,'12px system-ui',TXT);
+    y+=POST_PAD+nLines*POST_LINE_H+14;
+    if(i<2){hline(y-4,LINE);}
+  });
+  y+=10;
+
+  // SECTION 4 — DIAGNOSTICO
+  y+=8;t('04',''+G,y,'bold 11px monospace',YELLOW);t('Diagnóstico do Dia',G+26,y,'italic bold 20px Georgia',TXT);y+=10;hline(y,LINE);y+=18;
+
+  if(d.funcionou.length){
+    t('✔ O QUE FUNCIONOU',G,y,'bold 9px monospace',GREEN);y+=20;
+    d.funcionou.forEach(([tt,dd])=>{
+      const h=cardH(tt,dd);
+      rr(G,y,COL,h,8,PANEL2);
+      ctx.fillStyle=GREEN;ctx.fillRect(G,y,3,h);
+      t(tt,G+12,y+CARD_PAD+CARD_TITLE_H-4,'bold 11px system-ui',TXT,'left',COL-24);
+      wrapText(dd,G+12,y+CARD_PAD+CARD_TITLE_H+10,COL-24,CARD_LINE_H,'11px system-ui',DIM);
+      y+=h+8;
+    });
+  }
+  y+=8;
+  if(d.naofuncionou.length){
+    t('✘ O QUE NÃO FUNCIONOU',G,y,'bold 9px monospace',RED);y+=20;
+    d.naofuncionou.forEach(([tt,dd])=>{
+      const h=cardH(tt,dd);
+      rr(G,y,COL,h,8,PANEL2);
+      ctx.fillStyle=RED;ctx.fillRect(G,y,3,h);
+      t(tt,G+12,y+CARD_PAD+CARD_TITLE_H-4,'bold 11px system-ui',TXT,'left',COL-24);
+      wrapText(dd,G+12,y+CARD_PAD+CARD_TITLE_H+10,COL-24,CARD_LINE_H,'11px system-ui',DIM);
+      y+=h+8;
+    });
+  }
+
+  // SECTION 5 — APRENDIZADOS
+  if(d.aprendizados){
+    y+=8;t('05',''+G,y,'bold 11px monospace',YELLOW);t('Aprendizados',G+26,y,'italic bold 20px Georgia',TXT);y+=10;hline(y,LINE);y+=18;
+    const aLines=measureWrap(d.aprendizados,COL-28,'12px system-ui');
+    const aH=CARD_PAD+aLines*16+CARD_PAD;
+    rr(G,y,COL,aH,8,PANEL2,LINE);
+    ctx.fillStyle=BLUE;ctx.fillRect(G,y,3,aH);
+    wrapText(d.aprendizados,G+14,y+CARD_PAD+14,COL-28,16,'12px system-ui',TXT);
+    y+=aH+16;
+  }
+
+  // FOOTER
+  y+=16;hline(y,LINE);y+=16;
+  t('Monitoramento Elife · Copa do Mundo 2026',G,y,'9px monospace',DIM);
+  t('elife.com.br',W-G,y,'9px monospace',YELLOW,'right');
+
   const link=document.createElement('a');
   link.download=`Infografico_Copa_${dayId}.png`;
   link.href=cv.toDataURL('image/png');
