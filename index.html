@@ -141,11 +141,15 @@ function parseNum(s){if(!s||s===''||s==='—')return 0;return Number(String(s).r
 function parseCSV(text){
   const lines=text.trim().split('\n').map(l=>l.trim()).filter(l=>l.length>0);
   const knownHeaders=['data','hora','rank','plataforma','mencoes','posts','tipo','hashtag','jogo','posicao','termo'];
-  let headerIdx=0;
-  for(let i=0;i<Math.min(5,lines.length);i++){
-    const firstCell=lines[i].split(',')[0].toLowerCase().replace(/^"|"$/g,'').trim();
-    if(knownHeaders.includes(firstCell)){headerIdx=i;break;}
+  let headerIdx=-1;
+  for(let i=0;i<Math.min(8,lines.length);i++){
+    const cells=lines[i].split(',').map(c=>c.trim().replace(/^"|"$/g,'').toLowerCase().trim());
+    // Header válido: primeira célula é palavra conhecida E segunda célula também é texto simples (não número)
+    if(knownHeaders.includes(cells[0]) && cells.length>=2 && !/^\d{5,}/.test(cells[1])){
+      headerIdx=i;break;
+    }
   }
+  if(headerIdx===-1)return[];
   const headers=lines[headerIdx].split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase().trim());
   return lines.slice(headerIdx+1).map(line=>{
     const vals=[];let cur='',inQ=false;
