@@ -193,9 +193,15 @@ function showLoading(show){
 function buildDAILY(sheets){
   // PATCH 5: union de datas de DIARIO + TOTALS para nao perder dias sem mencoes
   const getDateKey=(sheet)=>{
-    const first=(sheets[sheet]||[])[0];
-    if(!first)return'data';
-    return Object.keys(first).find(k=>k.toLowerCase().trim()==='data')||Object.keys(first)[0];
+    // Procura em todas as rows a que tem chave 'data' com valor no formato DD/MM
+    const rows=sheets[sheet]||[];
+    if(!rows.length)return'data';
+    // Tenta achar a key cujo nome é 'data'
+    const first=rows[0];
+    const byName=Object.keys(first).find(k=>k.toLowerCase().trim()==='data');
+    if(byName)return byName;
+    // Fallback: primeira key
+    return Object.keys(first)[0];
   };
   const byDate=(sheet,date)=>{
     const key=getDateKey(sheet);
@@ -220,6 +226,7 @@ function buildDAILY(sheets){
   DAILY=dates.map(date=>{
     const d=first('DIARIO',date);
     const t=first('TOTALS',date);
+    console.log('TOTALS row for',date,JSON.stringify(t));
     const aprendizado=first('APRENDIZADOS',date);
     const platRows=byDate('PLATAFORMAS',date);
     const platMax=Math.max(...platRows.map(r=>parseNum(r.interacoes)),1);
