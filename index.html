@@ -281,13 +281,14 @@ function buildDAILY(sheets){
     const cd=DAILY[i]._diario;const pd=DAILY[i-1]._diario;
     const pct2=(c,p)=>{if(!p)return null;const v=((c-p)/p)*100;return(v>=0?'+':'')+v.toFixed(0)+'%';};
     DAILY[i].diarioDeltas={
+      mencoes: pct2(parseVal(cd.mencoes), parseVal(pd.mencoes)),
       contas: pct2(parseVal(cd.contas), parseVal(pd.contas)),
-      retweets: null, // retweets é % não valor absoluto
+      retweets: pct2(parseVal(cd.retweets), parseVal(pd.retweets)),
       tts: pct2(parseVal(cd.tts_brasil), parseVal(pd.tts_brasil)),
     };
   }
   if(DAILY[0]?.totals)DAILY[0].totals.deltas={posts:null,interacoes:null,views:null,alcance:null};
-  if(DAILY[0])DAILY[0].diarioDeltas={contas:null,retweets:null,tts:null};
+  if(DAILY[0])DAILY[0].diarioDeltas={mencoes:null,contas:null,retweets:null,tts:null};
 }
 
 function initDayStrip(){
@@ -326,9 +327,9 @@ function renderDay(d){
     </div>
 
     <div class="grid">
-      <div class="card"><p class="stat-label">Menções espontâneas</p><p class="stat-value">${d.mencoes}</p>${d.mencoesDelta?`<p class="stat-sub ${d.mencoesDelta.includes('-')?'delta-down':'delta-up'}">${d.mencoesDelta}</p>`:''}</div>
+      <div class="card"><p class="stat-label">Menções espontâneas</p><p class="stat-value">${d.mencoes}</p>${d.diarioDeltas?.mencoes?`<p class="stat-sub ${d.diarioDeltas.mencoes.startsWith('+')?'delta-up':'delta-down'}">${d.diarioDeltas.mencoes} vs dia anterior</p>`:''}</div>
       <div class="card"><p class="stat-label">Contas falando da transmissão</p><p class="stat-value">${d.contas}</p>${d.diarioDeltas?.contas?`<p class="stat-sub ${d.diarioDeltas.contas.startsWith('+')?'delta-up':'delta-down'}">${d.diarioDeltas.contas} vs dia anterior</p>`:''}</div>
-      <div class="card"><p class="stat-label">Retweets no X</p><p class="stat-value">${d.retweets}</p><p class="stat-sub">${d.curtidas} curtidas no X</p></div>
+      <div class="card"><p class="stat-label">Retweets no X</p><p class="stat-value">${d.retweets}</p><p class="stat-sub">${d.curtidas} curtidas no X</p>${d.diarioDeltas?.retweets?`<p class="stat-sub ${d.diarioDeltas.retweets.startsWith('+')?'delta-up':'delta-down'}">${d.diarioDeltas.retweets} vs dia anterior</p>`:''}</div>
       <div class="card"><p class="stat-label">Trending Topics</p><p class="stat-value">${d.tts_brasil.split(' ')[0]}</p><p class="stat-sub">Brasil: ${d.tts_brasil} · Mundo: ${d.tts_mundo}</p>${d.diarioDeltas?.tts?`<p class="stat-sub ${d.diarioDeltas.tts.startsWith('+')?'delta-up':'delta-down'}">${d.diarioDeltas.tts} vs dia anterior</p>`:''}</div>
     </div>
 
