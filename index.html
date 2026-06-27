@@ -167,6 +167,7 @@ function parseCSV(text){
 }
 
 let DAILY=[];
+let TOTAL=null;
 
 async function fetchSheet(name,url){
   const proxies=[url,`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
@@ -290,11 +291,56 @@ function buildDAILY(sheets){
   }
   if(DAILY[0]?.totals)DAILY[0].totals.deltas={posts:null,interacoes:null,views:null,alcance:null};
   if(DAILY[0])DAILY[0].diarioDeltas={mencoes:null,contas:null,retweets:null,tts:null};
+
+  // Página TOTAL: consolida todos os dias + top10/bottom5 geral
+  let sumPosts=0,sumInteracoes=0,sumViews=0,sumAlcance=0,sumMencoes=0,sumContas=0,sumRetweets=0;
+  DAILY.forEach(dd=>{
+    if(dd.totals?._raw){
+      sumPosts+=dd.totals._raw.posts;sumInteracoes+=dd.totals._raw.interacoes;
+      sumViews+=dd.totals._raw.views;sumAlcance+=dd.totals._raw.alcance;
+    }
+    sumMencoes+=parseNum(dd._diario.mencoes);
+    sumContas+=parseNum(dd._diario.contas);
+    sumRetweets+=parseNum(dd._diario.retweets);
+  });
+
+  const topKey=getDateKey('TOP_POSTS');
+  const bottomKey=getDateKey('BOTTOM_POSTS');
+  const top10Global=(sheets.TOP_POSTS||[])
+    .filter(r=>isValidDate((r[topKey]||'').trim())&&r.views&&parseNum(r.views)>0)
+    .sort((a,b)=>parseNum(b.views)-parseNum(a.views))
+    .slice(0,10)
+    .map(r=>[r.plataforma+' '+(r[topKey]||'')+' · '+(r.horario||''),[r.interacoes?r.interacoes+' interações':null,r.views?r.views+' views':null,r.alcance?r.alcance+' alcance':null].filter(Boolean).join(' · '),r.texto,r.url||'']);
+  const bottom5Global=(sheets.BOTTOM_POSTS||[])
+    .filter(r=>isValidDate((r[bottomKey]||'').trim()))
+    .sort((a,b)=>parseNum(a.interacoes)-parseNum(b.interacoes))
+    .slice(0,5)
+    .map(r=>[r.plataforma+' '+(r[bottomKey]||''),(r.interacoes||'0')+' interações',r.texto,r.url||'']);
+
+  TOTAL={
+    posts:sumPosts.toLocaleString('pt-BR'),
+    interacoes:fmt(sumInteracoes),
+    views:fmt(sumViews),
+    alcance:fmt(sumAlcance),
+    mencoes:sumMencoes.toLocaleString('pt-BR'),
+    contas:sumContas.toLocaleString('pt-BR'),
+    retweets:sumRetweets.toLocaleString('pt-BR'),
+    top10Global,
+    bottom5Global,
+  };
 }
 
 function initDayStrip(){
   const daystrip=document.getElementById('daystrip');
   daystrip.innerHTML='';
+
+  const tb=document.createElement('button');
+  tb.className='daybtn';
+  tb.style.cssText='border-color:var(--globo-blue);color:var(--globo-blue);font-weight:700;';
+  tb.textContent='★ Visão Total';
+  tb.onclick=()=>{document.querySelectorAll('#daystrip .daybtn').forEach(x=>x.classList.remove('active'));tb.classList.add('active');renderTotal();};
+  daystrip.appendChild(tb);
+
   DAILY.forEach((d,i)=>{
     const b=document.createElement('button');
     b.className='daybtn'+(i===0?' active':'');
@@ -303,6 +349,66 @@ function initDayStrip(){
     daystrip.appendChild(b);
   });
   if(DAILY[0])renderDay(DAILY[0]);
+}
+
+function renderTotal(){
+  if(!TOTAL){
+    document.getElementById('daily-content').innerHTML='<div style="padding:40px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--txt-dim)">Dados consolidados não disponíveis.</div>';
+    return;
+  }
+  if(window.hourlyChartInstance){window.hourlyChartInstance.destroy();window.hourlyChartInstance=null;}
+  const t=TOTAL;
+  document.getElementById('daily-content').innerHTML=`
+    <div class="content-header">
+      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-blue);">Visão Total · Consolidado da cobertura</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="dl-btn" onclick="downloadPDF('total','Copa_Globo_TOTAL')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+          Baixar PDF
+        </button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Posts (todos formatos)</p><p class="stat-value">${t.posts}</p></div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Interações totais</p><p class="stat-value">${t.interacoes}</p></div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Views totais</p><p class="stat-value">${t.views}</p></div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Alcance (IG + FB)</p><p class="stat-value">${t.alcance}</p></div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><p class="stat-label">Menções espontâneas</p><p class="stat-value">${t.mencoes}</p></div>
+      <div class="card"><p class="stat-label">Contas falando da transmissão</p><p class="stat-value">${t.contas}</p></div>
+      <div class="card"><p class="stat-label">Retweets no X</p><p class="stat-value">${t.retweets}</p></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <p class="panel-title">Top 10 conteúdos · maior número de views</p>
+      ${t.top10Global.length?t.top10Global.map((p,i)=>`
+        <div class="toppost">
+          <div class="rank">${String(i+1).padStart(2,'0')}</div>
+          <div>
+            <div class="meta-line">${p[0]} · ${p[1]}</div>
+            <div class="txt">${p[2]}</div>
+            ${p[3]?`<a href="${p[3]}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--globo-yellow);text-decoration:none;margin-top:3px;display:inline-block;opacity:.85;">ver post ↗</a>`:''}
+          </div>
+        </div>`).join(''):'<p class="no-data">Dado não disponível.</p>'}
+    </div>
+
+    ${t.bottom5Global.length?`
+    <div class="card" style="margin-bottom:14px;">
+      <p class="panel-title" style="color:var(--bad);">Bottom 5 conteúdos · menor número de interações geral</p>
+      ${t.bottom5Global.map((p,i)=>`
+        <div class="toppost">
+          <div class="rank" style="color:var(--bad);">${String(i+1).padStart(2,'0')}</div>
+          <div>
+            <div class="meta-line">${p[0]} · <span style="color:var(--bad);">${p[1]}</span></div>
+            <div class="txt">${p[2]}</div>
+            ${p[3]?`<a href="${p[3]}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--bad);text-decoration:none;margin-top:3px;display:inline-block;opacity:.85;">ver post ↗</a>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`:''}
+  `;
 }
 
 fetchAll();
