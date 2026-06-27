@@ -24,7 +24,7 @@
   h1{font-family:var(--display);font-weight:600;font-size:34px;margin:0;letter-spacing:-0.01em;}
   h1 span{color:var(--globo-yellow);}
   .meta{font-family:var(--mono);font-size:12px;color:var(--txt-dim);text-align:right;}
-  .daystrip{display:flex;gap:8px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px;}
+  .daystrip{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
   .daybtn{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--txt-dim);font-family:var(--mono);font-size:12px;padding:9px 14px;border-radius:7px;cursor:pointer;transition:.15s;white-space:nowrap;}
   .daybtn:hover{border-color:var(--globo-yellow);color:var(--txt);}
   .daybtn.active{background:var(--globo-yellow);color:#15290F;border-color:var(--globo-yellow);font-weight:700;}
@@ -140,6 +140,17 @@ const SHEET_URLS={
 };
 
 function parseNum(s){if(!s||s===''||s==='—')return 0;return Number(String(s).replace(/\./g,'').replace(',','.'))||0;}
+
+function parsePT(s){
+  if(!s||s==='—')return 0;
+  const m=String(s).trim().match(/([\d.,]+)\s*(mil|milh(?:ão|ões)|mi\b)?/i);
+  if(!m)return 0;
+  let num=parseFloat(m[1].replace(/\./g,'').replace(',','.'))||0;
+  const unit=(m[2]||'').toLowerCase();
+  if(unit==='mil')num*=1e3;
+  else if(unit.startsWith('mi'))num*=1e6;
+  return num;
+}
 
 function parseCSV(text){
   const lines=text.trim().split('\n').map(l=>l.trim()).filter(l=>l.length>0);
@@ -293,16 +304,23 @@ function buildDAILY(sheets){
   if(DAILY[0])DAILY[0].diarioDeltas={mencoes:null,contas:null,retweets:null,tts:null};
 
   // Página TOTAL: consolida todos os dias + top10/bottom5 geral
-  let sumPosts=0,sumInteracoes=0,sumViews=0,sumAlcance=0,sumMencoes=0,sumContas=0,sumRetweets=0;
+  let sumPosts=0,sumInteracoes=0,sumViews=0,sumAlcance=0,sumMencoes=0,sumContas=0;
+  let sumRetweetsPct=0,countRetweetsPct=0;
   DAILY.forEach(dd=>{
     if(dd.totals?._raw){
       sumPosts+=dd.totals._raw.posts;sumInteracoes+=dd.totals._raw.interacoes;
       sumViews+=dd.totals._raw.views;sumAlcance+=dd.totals._raw.alcance;
     }
-    sumMencoes+=parseNum(dd._diario.mencoes);
-    sumContas+=parseNum(dd._diario.contas);
-    sumRetweets+=parseNum(dd._diario.retweets);
+    sumMencoes+=parsePT(dd._diario.mencoes);
+    sumContas+=parsePT(dd._diario.contas);
+    // retweets vem como % na planilha, não dá pra somar — calcula média
+    const rv=dd._diario.retweets;
+    if(rv&&rv.includes('%')){
+      const v=parseFloat(rv.replace('%','').replace(',','.'));
+      if(!isNaN(v)){sumRetweetsPct+=v;countRetweetsPct++;}
+    }
   });
+  const avgRetweetsPct=countRetweetsPct?(sumRetweetsPct/countRetweetsPct).toFixed(0)+'%':'—';
 
   const topKey=getDateKey('TOP_POSTS');
   const bottomKey=getDateKey('BOTTOM_POSTS');
@@ -322,9 +340,9 @@ function buildDAILY(sheets){
     interacoes:fmt(sumInteracoes),
     views:fmt(sumViews),
     alcance:fmt(sumAlcance),
-    mencoes:sumMencoes.toLocaleString('pt-BR'),
-    contas:sumContas.toLocaleString('pt-BR'),
-    retweets:sumRetweets.toLocaleString('pt-BR'),
+    mencoes:fmt(sumMencoes),
+    contas:fmt(sumContas),
+    retweets:avgRetweetsPct,
     top10Global,
     bottom5Global,
   };
@@ -336,7 +354,7 @@ function initDayStrip(){
 
   const tb=document.createElement('button');
   tb.className='daybtn';
-  tb.style.cssText='border-color:var(--globo-blue);color:var(--globo-blue);font-weight:700;';
+  tb.style.cssText='font-weight:700;';
   tb.textContent='★ Visão Total';
   tb.onclick=()=>{document.querySelectorAll('#daystrip .daybtn').forEach(x=>x.classList.remove('active'));tb.classList.add('active');renderTotal();};
   daystrip.appendChild(tb);
@@ -360,7 +378,7 @@ function renderTotal(){
   const t=TOTAL;
   document.getElementById('daily-content').innerHTML=`
     <div class="content-header">
-      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-blue);">Visão Total · Consolidado da cobertura</h2>
+      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">Visão Total · Consolidado da cobertura</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="dl-btn" onclick="downloadPDF('total','Copa_Globo_TOTAL')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
@@ -379,7 +397,7 @@ function renderTotal(){
     <div class="grid">
       <div class="card"><p class="stat-label">Menções espontâneas</p><p class="stat-value">${t.mencoes}</p></div>
       <div class="card"><p class="stat-label">Contas falando da transmissão</p><p class="stat-value">${t.contas}</p></div>
-      <div class="card"><p class="stat-label">Retweets no X</p><p class="stat-value">${t.retweets}</p></div>
+      <div class="card"><p class="stat-label">Retweets no X</p><p class="stat-value">${t.retweets}</p><p class="stat-sub">média diária no período</p></div>
     </div>
 
     <div class="card" style="margin-bottom:14px;">
