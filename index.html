@@ -117,6 +117,7 @@
   <div class="daystrip" id="pagenav" style="margin-bottom:14px;">
     <button class="daybtn active" id="navDaily" onclick="switchPage('daily')">Visão Diária</button>
     <button class="daybtn" id="navHashtag" onclick="switchPage('hashtag')"># Buscar Hashtag</button>
+    <button class="daybtn" id="navSov" onclick="switchPage('sov')">◐ Share of Voice</button>
   </div>
 
   <div id="daily-view">
@@ -132,6 +133,10 @@
       <div id="hashtagChips" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;"></div>
     </div>
     <div id="hashtag-content"><p class="no-data" style="padding:20px;">Digite ou selecione uma hashtag para ver os dados.</p></div>
+  </div>
+
+  <div id="sov-view" style="display:none;">
+    <div id="sov-content"></div>
   </div>
 
   <footer>Metodologia: X/Twitter (Brandwatch) · Facebook (Socialnews/Brandwatch) · Instagram (hashtags oficiais + amostra de 700 mil perfis) · YouTube (posts e comentários). Depoimentos = volume total de menções nas plataformas monitoradas.</footer>
@@ -153,6 +158,8 @@ const SHEET_URLS={
   PONTOS:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1821918574&single=true&output=csv',
   APRENDIZADOS:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=113428370&single=true&output=csv',
   MENCOES_HORA:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=30729022&single=true&output=csv',
+  // SOV: cole aqui o link de publicação CSV da aba "SOV" assim que ela existir na planilha
+  SOV:'',
 };
 
 function parseNum(s){if(!s||s===''||s==='—')return 0;return Number(String(s).replace(/\./g,'').replace(',','.'))||0;}
@@ -197,8 +204,10 @@ let DAILY=[];
 let TOTAL=null;
 let ALL_TAGS_ROWS=[];
 let HASHTAG_LIST=[];
+let SOV_DATA=null;
 
 async function fetchSheet(name,url){
+  if(!url)return[name,[]];
   const proxies=[url,`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
   for(const u of proxies){
     try{const r=await fetch(u);if(!r.ok)continue;const t=await r.text();if(t&&t.includes(','))return[name,parseCSV(t)];}catch(e){continue;}
@@ -373,6 +382,22 @@ function buildDAILY(sheets){
     .filter(r=>r.hashtag);
   HASHTAG_LIST=[...new Set(ALL_TAGS_ROWS.map(r=>r.hashtag))].sort((a,b)=>a.localeCompare(b));
   populateHashtagUI();
+
+  // Página SOV: pega o lote mais recente da aba SOV (data, concorrente, percentual)
+  const sovKey=getDateKey('SOV');
+  const sovRowsRaw=(sheets.SOV||[]).filter(r=>isValidDate((r[sovKey]||'').trim()));
+  if(sovRowsRaw.length){
+    const dateSortKey=dt=>{const[dd,mm]=dt.split('/').map(Number);return mm*100+dd;};
+    const sovDates=[...new Set(sovRowsRaw.map(r=>r[sovKey].trim()))].sort((a,b)=>dateSortKey(a)-dateSortKey(b));
+    const lastDate=sovDates[sovDates.length-1];
+    const items=sovRowsRaw.filter(r=>r[sovKey].trim()===lastDate)
+      .map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0}))
+      .filter(it=>it.name)
+      .sort((a,b)=>b.pct-a.pct);
+    SOV_DATA={date:lastDate,firstDate:sovDates[0],items};
+  }else{
+    SOV_DATA=null;
+  }
 }
 
 function initDayStrip(){
@@ -459,8 +484,45 @@ function renderTotal(){
 function switchPage(view){
   document.getElementById('navDaily').classList.toggle('active',view==='daily');
   document.getElementById('navHashtag').classList.toggle('active',view==='hashtag');
+  document.getElementById('navSov').classList.toggle('active',view==='sov');
   document.getElementById('daily-view').style.display=view==='daily'?'':'none';
   document.getElementById('hashtag-view').style.display=view==='hashtag'?'':'none';
+  document.getElementById('sov-view').style.display=view==='sov'?'':'none';
+  if(view==='sov')renderSOV();
+}
+
+function renderSOV(){
+  const container=document.getElementById('sov-content');
+  if(!SOV_DATA||!SOV_DATA.items.length){
+    container.innerHTML='<p class="no-data" style="padding:20px;">Nenhum dado de Share of Voice cadastrado ainda. Preencha a aba SOV na planilha.</p>';
+    return;
+  }
+  const colors=['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'];
+  const items=SOV_DATA.items;
+  container.innerHTML=`
+    <div class="content-header">
+      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">Share of Voice</h2>
+      <div class="meta" style="text-align:left;">Desde ${SOV_DATA.firstDate} · Atualizado em ${SOV_DATA.date}</div>
+    </div>
+    <div class="row2">
+      <div class="card" style="display:flex;align-items:center;justify-content:center;">
+        <canvas id="sovChartCanvas" style="max-width:260px;max-height:260px;"></canvas>
+      </div>
+      <div class="card">
+        <p class="panel-title">Participação por concorrente</p>
+        ${items.map((it,i)=>`<div class="tag-row"><span class="tag-name"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${colors[i%colors.length]};margin-right:8px;"></span>${it.name}</span><span class="tag-count">${it.pct.toFixed(1).replace('.',',')}%</span></div>`).join('')}
+      </div>
+    </div>
+  `;
+  if(window.sovChartInstance){window.sovChartInstance.destroy();window.sovChartInstance=null;}
+  const canvas=document.getElementById('sovChartCanvas');
+  if(canvas){
+    window.sovChartInstance=new Chart(canvas,{
+      type:'doughnut',
+      data:{labels:items.map(it=>it.name),datasets:[{data:items.map(it=>it.pct),backgroundColor:items.map((_,i)=>colors[i%colors.length]),borderColor:'#0E1A14',borderWidth:2}]},
+      options:{responsive:true,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}%`}}}}
+    });
+  }
 }
 
 function populateHashtagUI(){
