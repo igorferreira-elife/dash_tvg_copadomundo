@@ -275,9 +275,11 @@ function buildDAILY(sheets){
       _raw:{posts:parseNum(t.posts),interacoes:parseNum(t.interacoes),views:parseNum(t.views),alcance:parseNum(t.alcance)}
     }:null;
 
-    const sovItems=byDate('SOV',date)
-      .map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0,volume:parseNum(r.volume||'0')}))
-      .filter(it=>it.name).sort((a,b)=>b.pct-a.pct);
+    const sovRaw=byDate('SOV',date)
+      .map(r=>({name:(r.concorrente||'').trim(),volume:parseNum(r.percentual||'0')}))
+      .filter(it=>it.name);
+    const sovDayTotal=sovRaw.reduce((s,it)=>s+it.volume,0);
+    const sovItems=sovRaw.map(it=>({...it,pct:sovDayTotal?it.volume/sovDayTotal*100:0})).sort((a,b)=>b.pct-a.pct);
 
     return{id:date.replace('/','_'),label:date,title:date,mencoes:d.mencoes||'—',mencoesDelta:d.mencoesDelta||'',contas:d.contas||'—',retweets:d.retweets||'—',curtidas:d.curtidas||'—',tts_brasil:d.tts_brasil||'—',tts_mundo:d.tts_mundo||'—',hourlyHighlight,hourlyData,tagsConcorrencia:tags,mencoes_jogos,trendingTopics:tts,googleTrends:trends,plataformas,topPosts,bottomPosts,funcionou,naofuncionou,positivos,atencao,aprendizados:aprendizado.texto||'',totals:totalsObj,sovItems,
       _diario: { mencoes: d.mencoes || '', contas: d.contas || '', retweets: d.retweets || '', tts_brasil: d.tts_brasil || '' }
@@ -355,19 +357,15 @@ function buildDAILY(sheets){
     const dsk=dt=>{const[dd,mm]=dt.split('/').map(Number);return mm*100+dd;};
     const sovDates=[...new Set(sovRowsRaw.map(r=>r[sovKey].trim()))].sort((a,b)=>dsk(a)-dsk(b));
     const lastDate=sovDates[sovDates.length-1];
-    const lastItems=sovRowsRaw.filter(r=>r[sovKey].trim()===lastDate)
-      .map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0,volume:parseNum(r.volume||'0')}))
-      .filter(it=>it.name).sort((a,b)=>b.pct-a.pct);
-    const allSovItems=sovRowsRaw.map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0,volume:parseNum(r.volume||'0')})).filter(it=>it.name);
-    const hasVolume=allSovItems.some(it=>it.volume>0);
-    let totalSovItems;
-    if(hasVolume){
-      const volMap={};allSovItems.forEach(it=>{volMap[it.name]=(volMap[it.name]||0)+it.volume;});
-      const totalVol=Object.values(volMap).reduce((s,v)=>s+v,0);
-      totalSovItems=Object.entries(volMap).map(([name,vol])=>({name,volume:vol,pct:totalVol?vol/totalVol*100:0})).sort((a,b)=>b.pct-a.pct);
-    }else{
-      totalSovItems=lastItems;
-    }
+    // percentual agora guarda volume absoluto; % calculado a partir do total
+    const allSovItems=sovRowsRaw
+      .map(r=>({name:(r.concorrente||'').trim(),volume:parseNum(r.percentual||'0')}))
+      .filter(it=>it.name);
+    const volMap={};allSovItems.forEach(it=>{volMap[it.name]=(volMap[it.name]||0)+it.volume;});
+    const totalVol=Object.values(volMap).reduce((s,v)=>s+v,0);
+    const totalSovItems=Object.entries(volMap)
+      .map(([name,vol])=>({name,volume:vol,pct:totalVol?vol/totalVol*100:0}))
+      .sort((a,b)=>b.pct-a.pct);
     SOV_DATA={totalSovItems};
   }else{
     SOV_DATA=null;
@@ -530,7 +528,7 @@ function renderSemanal(wIdx){
   // Agrega tags concorrência: soma depoimentos por hashtag
   const tagMap={};
   days.forEach(dd=>dd.tagsConcorrencia.forEach(([n,c])=>{tagMap[n]=(tagMap[n]||0)+parseNum(c);}));
-  const tagsAgg=Object.entries(tagMap).sort((a,b)=>b[1]-a[1]);
+  const tagsAgg=Object.entries(tagMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   // Menções por jogo da semana
   const jogosMap={};
@@ -538,23 +536,14 @@ function renderSemanal(wIdx){
   const jogosAgg=Object.entries(jogosMap).sort((a,b)=>b[1]-a[1]);
 
   // Top posts da semana (todos os dias em sequência)
-  const topPostsWeek=days.flatMap(dd=>dd.topPosts.map(p=>({day:dd.label,p})));
-  // Bottom posts da semana
-  const bottomPostsWeek=days.flatMap(dd=>dd.bottomPosts.map(p=>({day:dd.label,p})));
-
-  // O que funcionou / não funcionou
-  const funcionouWeek=days.flatMap(dd=>dd.funcionou.map(x=>({day:dd.label,x})));
-  const naoFuncionouWeek=days.flatMap(dd=>dd.naofuncionou.map(x=>({day:dd.label,x})));
-
-  // Pontos positivos / atenção
-  const positivosWeek=days.flatMap(dd=>dd.positivos.map(x=>({day:dd.label,x})));
-  const atencaoWeek=days.flatMap(dd=>dd.atencao.map(x=>({day:dd.label,x})));
-
-  // Aprendizados da semana
+  const topPostsWeek=days.flatMap(dd=>dd.topPosts.map(p=>({day:dd.label,p}))).slice(0,10);
+  const bottomPostsWeek=days.flatMap(dd=>dd.bottomPosts.map(p=>({day:dd.label,p}))).slice(0,10);
+  const funcionouWeek=days.flatMap(dd=>dd.funcionou.map(x=>({day:dd.label,x}))).slice(0,10);
+  const naoFuncionouWeek=days.flatMap(dd=>dd.naofuncionou.map(x=>({day:dd.label,x}))).slice(0,10);
+  const positivosWeek=days.flatMap(dd=>dd.positivos.map(x=>({day:dd.label,x}))).slice(0,10);
+  const atencaoWeek=days.flatMap(dd=>dd.atencao.map(x=>({day:dd.label,x}))).slice(0,10);
   const aprendizadosWeek=days.filter(dd=>dd.aprendizados).map(dd=>({day:dd.label,txt:dd.aprendizados}));
-
-  // Trending topics da semana (de todos os dias)
-  const ttsWeek=days.flatMap(dd=>dd.trendingTopics.map(t=>({day:dd.label,t})));
+  const ttsWeek=days.flatMap(dd=>dd.trendingTopics.map(t=>({day:dd.label,t}))).slice(0,10);
 
   // SOV da semana (pega o último dia com SOV)
   const sovWeek=days.slice().reverse().find(dd=>dd.sovItems&&dd.sovItems.length);
