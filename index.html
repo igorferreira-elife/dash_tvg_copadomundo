@@ -116,7 +116,7 @@
 </header>
   <div class="daystrip" id="pagenav" style="margin-bottom:14px;">
     <button class="daybtn active" id="navDaily" onclick="switchPage('daily')">Visão Diária</button>
-    <button class="daybtn" id="navHashtag" onclick="switchPage('hashtag')"># Buscar Hashtag</button>
+    <button class="daybtn" id="navSemanal" onclick="switchPage('semanal')">📅 Semanal</button>
     <button class="daybtn" id="navSov" onclick="switchPage('sov')">◐ Share of Voice</button>
   </div>
 
@@ -125,14 +125,8 @@
     <div id="daily-content"><div style="padding:60px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--txt-dim)">Carregando dados da planilha...</div></div>
   </div>
 
-  <div id="hashtag-view" style="display:none;">
-    <div class="card" style="margin-bottom:18px;">
-      <p class="panel-title">Buscar hashtag</p>
-      <input id="hashtagInput" list="hashtagOptions" oninput="renderHashtagQuery(this.value)" placeholder="Digite ou selecione uma hashtag... ex: CopaNaGlobo" style="width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--txt);font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:7px;outline:none;">
-      <datalist id="hashtagOptions"></datalist>
-      <div id="hashtagChips" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;"></div>
-    </div>
-    <div id="hashtag-content"><p class="no-data" style="padding:20px;">Digite ou selecione uma hashtag para ver os dados.</p></div>
+  <div id="semanal-view" style="display:none;">
+    <div id="semanal-content"></div>
   </div>
 
   <div id="sov-view" style="display:none;">
@@ -201,9 +195,8 @@ function parseCSV(text){
 
 let DAILY=[];
 let TOTAL=null;
-let ALL_TAGS_ROWS=[];
-let HASHTAG_LIST=[];
 let SOV_DATA=null;
+let WEEKLY_DATA=[];
 
 async function fetchSheet(name,url){
   if(!url)return[name,[]];
@@ -304,7 +297,11 @@ function buildDAILY(sheets){
       _raw:{posts:parseNum(t.posts),interacoes:parseNum(t.interacoes),views:parseNum(t.views),alcance:parseNum(t.alcance)}
     }:null;
 
-    return{id:date.replace('/','_'),label:date,title:date,mencoes:d.mencoes||'—',mencoesDelta:d.mencoesDelta||'',contas:d.contas||'—',retweets:d.retweets||'—',curtidas:d.curtidas||'—',tts_brasil:d.tts_brasil||'—',tts_mundo:d.tts_mundo||'—',hourlyHighlight,hourlyData,tagsConcorrencia:tags,mencoes_jogos,trendingTopics:tts,googleTrends:trends,plataformas,topPosts,bottomPosts,funcionou,naofuncionou,positivos,atencao,aprendizados:aprendizado.texto||'',totals:totalsObj,
+    const sovItems=byDate('SOV',date)
+      .map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0,volume:parseNum(r.volume||'0')}))
+      .filter(it=>it.name).sort((a,b)=>b.pct-a.pct);
+
+    return{id:date.replace('/','_'),label:date,title:date,mencoes:d.mencoes||'—',mencoesDelta:d.mencoesDelta||'',contas:d.contas||'—',retweets:d.retweets||'—',curtidas:d.curtidas||'—',tts_brasil:d.tts_brasil||'—',tts_mundo:d.tts_mundo||'—',hourlyHighlight,hourlyData,tagsConcorrencia:tags,mencoes_jogos,trendingTopics:tts,googleTrends:trends,plataformas,topPosts,bottomPosts,funcionou,naofuncionou,positivos,atencao,aprendizados:aprendizado.texto||'',totals:totalsObj,sovItems,
       _diario: { mencoes: d.mencoes || '', contas: d.contas || '', retweets: d.retweets || '', tts_brasil: d.tts_brasil || '' }
   };
   });
@@ -373,30 +370,46 @@ function buildDAILY(sheets){
     bottom5Global,
   };
 
-  // Página de busca por Hashtag: usa TAGS_CONCORRENCIA (hashtag + depoimentos por dia)
-  const tagKey=getDateKey('TAGS_CONCORRENCIA');
-  ALL_TAGS_ROWS=(sheets.TAGS_CONCORRENCIA||[])
-    .filter(r=>isValidDate((r[tagKey]||'').trim()))
-    .map(r=>({date:(r[tagKey]||'').trim(),hashtag:(r.hashtag||'').trim(),depoimentos:parseNum(r.depoimentos)}))
-    .filter(r=>r.hashtag);
-  HASHTAG_LIST=[...new Set(ALL_TAGS_ROWS.map(r=>r.hashtag))].sort((a,b)=>a.localeCompare(b));
-  populateHashtagUI();
-
-  // Página SOV: pega o lote mais recente da aba SOV (data, concorrente, percentual)
+  // SOV: pega o lote mais recente (para aba dedicada) e guarda todas as datas disponíveis
   const sovKey=getDateKey('SOV');
   const sovRowsRaw=(sheets.SOV||[]).filter(r=>isValidDate((r[sovKey]||'').trim()));
   if(sovRowsRaw.length){
-    const dateSortKey=dt=>{const[dd,mm]=dt.split('/').map(Number);return mm*100+dd;};
-    const sovDates=[...new Set(sovRowsRaw.map(r=>r[sovKey].trim()))].sort((a,b)=>dateSortKey(a)-dateSortKey(b));
+    const dsk=dt=>{const[dd,mm]=dt.split('/').map(Number);return mm*100+dd;};
+    const sovDates=[...new Set(sovRowsRaw.map(r=>r[sovKey].trim()))].sort((a,b)=>dsk(a)-dsk(b));
     const lastDate=sovDates[sovDates.length-1];
     const items=sovRowsRaw.filter(r=>r[sovKey].trim()===lastDate)
-      .map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0}))
-      .filter(it=>it.name)
-      .sort((a,b)=>b.pct-a.pct);
-    SOV_DATA={date:lastDate,firstDate:sovDates[0],items};
+      .map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0,volume:parseNum(r.volume||'0')}))
+      .filter(it=>it.name).sort((a,b)=>b.pct-a.pct);
+    // SOV total: recalcula % por volume se disponível, senão usa última data
+    const allSovItems=sovRowsRaw.map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0,volume:parseNum(r.volume||'0')})).filter(it=>it.name);
+    const hasVolume=allSovItems.some(it=>it.volume>0);
+    let totalSovItems;
+    if(hasVolume){
+      const volMap={};allSovItems.forEach(it=>{volMap[it.name]=(volMap[it.name]||0)+it.volume;});
+      const totalVol=Object.values(volMap).reduce((s,v)=>s+v,0);
+      totalSovItems=Object.entries(volMap).map(([name,vol])=>({name,volume:vol,pct:totalVol?vol/totalVol*100:0})).sort((a,b)=>b.pct-a.pct);
+    }else{
+      totalSovItems=items; // sem volume, usa último lote
+    }
+    SOV_DATA={date:lastDate,firstDate:sovDates[0],items,totalSovItems};
   }else{
     SOV_DATA=null;
   }
+
+  // Semanal: agrupa dias em semanas (sem1=11-15/jun, depois seg-dom)
+  const wkIdx=dt=>{const[dd,mm]=dt.split('/').map(Number);if(mm===6&&dd>=11&&dd<=15)return 0;const base=new Date(2026,5,16);const cur=new Date(2026,mm-1,dd);return Math.floor((cur-base)/(7*864e5))+1;};
+  const wkRange=i=>{if(i===0)return'11/06 – 15/06';const mon=new Date(2026,5,16+(i-1)*7);const sun=new Date(mon);sun.setDate(mon.getDate()+6);const f=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return`${f(mon)} – ${f(sun)}`;};
+  const weekMap={};
+  DAILY.forEach(dd=>{
+    const wi=wkIdx(dd.label);
+    if(!weekMap[wi])weekMap[wi]={idx:wi,range:wkRange(wi),days:[],posts:0,interacoes:0,views:0,alcance:0,mencoes:0,contas:0};
+    const w=weekMap[wi];
+    w.days.push(dd.label);
+    if(dd.totals?._raw){w.posts+=dd.totals._raw.posts;w.interacoes+=dd.totals._raw.interacoes;w.views+=dd.totals._raw.views;w.alcance+=dd.totals._raw.alcance;}
+    w.mencoes+=parsePT(dd._diario.mencoes);
+    w.contas+=parsePT(dd._diario.contas);
+  });
+  WEEKLY_DATA=Object.values(weekMap).sort((a,b)=>a.idx-b.idx);
 }
 
 function initDayStrip(){
@@ -464,6 +477,17 @@ function renderTotal(){
         </div>`).join(''):'<p class="no-data">Dado não disponível.</p>'}
     </div>
 
+    ${SOV_DATA?.totalSovItems?.length?`
+    <div class="row2" style="margin-bottom:14px;" id="totalSovRow">
+      <div class="card" style="display:flex;align-items:center;justify-content:center;">
+        <canvas id="totalSovChart" style="max-width:240px;max-height:240px;"></canvas>
+      </div>
+      <div class="card">
+        <p class="panel-title">Share of Voice · período completo</p>
+        ${SOV_DATA.totalSovItems.map((it,i)=>`<div class="tag-row"><span class="tag-name"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'][i%12]};margin-right:8px;"></span>${it.name}</span><span class="tag-count">${it.pct.toFixed(1).replace('.',',')}%${it.volume?` · ${fmt(it.volume)}`:''}</span></div>`).join('')}
+      </div>
+    </div>`:''}
+
     ${t.bottom5Global.length?`
     <div class="card" style="margin-bottom:14px;">
       <p class="panel-title" style="color:var(--bad);">Bottom 5 conteúdos · menor número de interações geral</p>
@@ -478,16 +502,50 @@ function renderTotal(){
         </div>`).join('')}
     </div>`:''}
   `;
+  // inicia gráfico SOV total após HTML setado
+  if(window.totalSovChartInst){window.totalSovChartInst.destroy();window.totalSovChartInst=null;}
+  const tsc=document.getElementById('totalSovChart');
+  if(tsc&&SOV_DATA?.totalSovItems?.length){
+    const colors=['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'];
+    window.totalSovChartInst=new Chart(tsc,{type:'doughnut',data:{labels:SOV_DATA.totalSovItems.map(it=>it.name),datasets:[{data:SOV_DATA.totalSovItems.map(it=>it.pct),backgroundColor:SOV_DATA.totalSovItems.map((_,i)=>colors[i%12]),borderColor:'#0E1A14',borderWidth:2}]},options:{responsive:true,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed.toFixed(1)}%`}}}}});
+  }
 }
 
 function switchPage(view){
-  document.getElementById('navDaily').classList.toggle('active',view==='daily');
-  document.getElementById('navHashtag').classList.toggle('active',view==='hashtag');
-  document.getElementById('navSov').classList.toggle('active',view==='sov');
+  ['navDaily','navSemanal','navSov'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',id==='nav'+view.charAt(0).toUpperCase()+view.slice(1));});
   document.getElementById('daily-view').style.display=view==='daily'?'':'none';
-  document.getElementById('hashtag-view').style.display=view==='hashtag'?'':'none';
+  document.getElementById('semanal-view').style.display=view==='semanal'?'':'none';
   document.getElementById('sov-view').style.display=view==='sov'?'':'none';
   if(view==='sov')renderSOV();
+  if(view==='semanal')renderSemanal();
+}
+
+function renderSemanal(){
+  const container=document.getElementById('semanal-content');
+  if(!WEEKLY_DATA.length){container.innerHTML='<p class="no-data" style="padding:20px;">Dados semanais não disponíveis.</p>';return;}
+  const html=WEEKLY_DATA.map((w,wi)=>{
+    const prev=WEEKLY_DATA[wi-1];
+    const pct=(c,p)=>{if(!p)return'';const v=((c-p)/p)*100;return`<span class="${v>=0?'delta-up':'delta-down'}" style="font-size:11px;margin-left:6px;">${v>=0?'+':''}${v.toFixed(0)}% vs sem. ant.</span>`;};
+    return`
+    <div style="margin-bottom:24px;">
+      <h3 style="font-family:var(--display);font-size:17px;color:var(--globo-yellow);margin:0 0 12px;display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;background:var(--globo-yellow);border-radius:50%;display:inline-block;"></span>Semana ${w.idx+1} · ${w.range} <span style="font-family:var(--mono);font-size:11px;color:var(--txt-dim);font-weight:400;">${w.days.length} dia${w.days.length>1?'s':''}</span></h3>
+      <div class="grid">
+        <div class="card" style="border-color:rgba(255,214,10,.2);"><p class="stat-label">Posts</p><p class="stat-value">${w.posts.toLocaleString('pt-BR')}</p>${prev?pct(w.posts,prev.posts):''}</div>
+        <div class="card" style="border-color:rgba(255,214,10,.2);"><p class="stat-label">Interações</p><p class="stat-value">${fmt(w.interacoes)}</p>${prev?pct(w.interacoes,prev.interacoes):''}</div>
+        <div class="card" style="border-color:rgba(255,214,10,.2);"><p class="stat-label">Views</p><p class="stat-value">${fmt(w.views)}</p>${prev?pct(w.views,prev.views):''}</div>
+        <div class="card" style="border-color:rgba(255,214,10,.2);"><p class="stat-label">Alcance (IG+FB)</p><p class="stat-value">${fmt(w.alcance)}</p>${prev?pct(w.alcance,prev.alcance):''}</div>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(2,1fr);">
+        <div class="card"><p class="stat-label">Menções espontâneas</p><p class="stat-value">${fmt(w.mencoes)}</p>${prev?pct(w.mencoes,prev.mencoes):''}</div>
+        <div class="card"><p class="stat-label">Contas falando</p><p class="stat-value">${fmt(w.contas)}</p>${prev?pct(w.contas,prev.contas):''}</div>
+      </div>
+    </div>`;
+  }).join('<hr style="border:none;border-top:1px solid var(--line);margin:4px 0 20px;">');
+  container.innerHTML=`
+    <div class="content-header">
+      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">Visão Semanal</h2>
+    </div>
+    ${html}`;
 }
 
 function renderSOV(){
@@ -520,76 +578,6 @@ function renderSOV(){
       type:'doughnut',
       data:{labels:items.map(it=>it.name),datasets:[{data:items.map(it=>it.pct),backgroundColor:items.map((_,i)=>colors[i%colors.length]),borderColor:'#0E1A14',borderWidth:2}]},
       options:{responsive:true,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}%`}}}}
-    });
-  }
-}
-
-function populateHashtagUI(){
-  const dl=document.getElementById('hashtagOptions');
-  if(dl)dl.innerHTML=HASHTAG_LIST.map(h=>`<option value="${h}">`).join('');
-  const chips=document.getElementById('hashtagChips');
-  if(chips)chips.innerHTML=HASHTAG_LIST.map(h=>`<button class="daybtn" style="font-size:11px;padding:6px 12px;" onclick="selectHashtag('${h.replace(/'/g,"\\'")}')">${h}</button>`).join('');
-}
-
-function selectHashtag(h){
-  const input=document.getElementById('hashtagInput');
-  if(input)input.value=h;
-  renderHashtagQuery(h);
-}
-
-function renderHashtagQuery(raw){
-  const container=document.getElementById('hashtag-content');
-  const q=(raw||'').trim().toLowerCase().replace(/^#/,'');
-  if(!q){container.innerHTML='<p class="no-data" style="padding:20px;">Digite ou selecione uma hashtag para ver os dados.</p>';return;}
-  const matches=[...new Set(ALL_TAGS_ROWS.filter(r=>r.hashtag.toLowerCase().replace(/^#/,'').includes(q)).map(r=>r.hashtag))];
-  if(matches.length===0){
-    container.innerHTML=`<p class="no-data" style="padding:20px;">Nenhuma hashtag encontrada para "${raw}".</p>`;
-    return;
-  }
-  if(matches.length>1){
-    container.innerHTML=`<div class="card"><p class="panel-title">Várias hashtags encontradas — escolha uma:</p><div style="display:flex;gap:8px;flex-wrap:wrap;">${matches.map(h=>`<button class="daybtn" onclick="selectHashtag('${h.replace(/'/g,"\\'")}')">${h}</button>`).join('')}</div></div>`;
-    return;
-  }
-  renderHashtagChart(matches[0]);
-}
-
-function renderHashtagChart(hashtag){
-  const container=document.getElementById('hashtag-content');
-  const rows=ALL_TAGS_ROWS.filter(r=>r.hashtag===hashtag);
-  const order=DAILY.map(d=>d.label);
-  rows.sort((a,b)=>order.indexOf(a.date)-order.indexOf(b.date));
-
-  const total=rows.reduce((s,r)=>s+r.depoimentos,0);
-  const peak=rows.reduce((m,r)=>r.depoimentos>m.depoimentos?r:m,rows[0]||{depoimentos:0,date:'—'});
-  const avg=rows.length?Math.round(total/rows.length):0;
-
-  container.innerHTML=`
-    <div class="content-header">
-      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">${hashtag}</h2>
-    </div>
-    <div class="grid">
-      <div class="card"><p class="stat-label">Total de depoimentos</p><p class="stat-value">${fmt(total)}</p></div>
-      <div class="card"><p class="stat-label">Média diária</p><p class="stat-value">${fmt(avg)}</p></div>
-      <div class="card"><p class="stat-label">Pico</p><p class="stat-value">${fmt(peak.depoimentos)}</p><p class="stat-sub">${peak.date}</p></div>
-      <div class="card"><p class="stat-label">Dias com dados</p><p class="stat-value">${rows.length}</p></div>
-    </div>
-    <div class="card" style="margin-bottom:14px;">
-      <p class="panel-title">Evolução de depoimentos por dia</p>
-      ${rows.length?'<canvas id="hashtagChartCanvas"></canvas>':'<p class="no-data">Dado não disponível.</p>'}
-    </div>
-    <div class="card">
-      <p class="panel-title">Valores por dia</p>
-      ${rows.map(r=>`<div class="tag-row"><span class="tag-name">${r.date}</span><span class="tag-count">${fmt(r.depoimentos)} depoimentos</span></div>`).join('')}
-    </div>
-  `;
-
-  if(window.hashtagChartInstance){window.hashtagChartInstance.destroy();window.hashtagChartInstance=null;}
-  const canvas=document.getElementById('hashtagChartCanvas');
-  if(canvas&&rows.length){
-    window.hashtagChartInstance=new Chart(canvas,{
-      type:'line',
-      data:{labels:rows.map(r=>r.date),datasets:[{label:hashtag,data:rows.map(r=>r.depoimentos),borderColor:'#FFD60A',backgroundColor:'rgba(255,214,10,0.12)',fill:true,tension:0.3,pointRadius:4,pointBackgroundColor:'#FFD60A',pointBorderColor:'#0E1A14',borderWidth:2}]},
-      options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#9DB4AB',font:{size:10}},grid:{color:'#214238'}},y:{ticks:{color:'#9DB4AB'},grid:{color:'#214238'}}}}
     });
   }
 }
@@ -670,6 +658,17 @@ function renderDay(d){
       </div>
     </div>
 
+    ${d.sovItems&&d.sovItems.length?`
+    <div class="row2" style="margin-bottom:14px;">
+      <div class="card" style="display:flex;align-items:center;justify-content:center;">
+        <canvas id="sovDay-${d.id}" style="max-width:220px;max-height:220px;"></canvas>
+      </div>
+      <div class="card">
+        <p class="panel-title">Share of Voice · ${d.label}</p>
+        ${d.sovItems.map((it,i)=>`<div class="tag-row"><span class="tag-name"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'][i%12]};margin-right:8px;"></span>${it.name}</span><span class="tag-count">${it.pct.toFixed(1).replace('.',',')}%</span></div>`).join('')}
+      </div>
+    </div>`:''}
+
     <div class="card" style="margin-bottom:14px;">
       <p class="panel-title">Top 10 posts do dia</p>
       ${d.topPosts.map((p,i)=>`
@@ -726,6 +725,14 @@ function renderDay(d){
       const labels=d.hourlyData.map((_,i)=>String(i).padStart(2,'0')+'h');
       const peakIdx=d.hourlyData.indexOf(Math.max(...d.hourlyData));
       window.hourlyChartInstance=new Chart(canvas,{type:'line',data:{labels,datasets:[{data:d.hourlyData,borderColor:'#FFD60A',backgroundColor:'rgba(255,214,10,0.12)',fill:true,tension:0.4,pointRadius:d.hourlyData.map((_,i)=>i===peakIdx?5:0),pointBackgroundColor:'#FFD60A',pointBorderColor:'#0E1A14',borderWidth:2}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{ticks:{color:'#9DB4AB',font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:'#214238'}},y:{display:false}}}});
+    }
+  }
+  if(window.sovDayChartInst){window.sovDayChartInst.destroy();window.sovDayChartInst=null;}
+  if(d.sovItems&&d.sovItems.length){
+    const sc=document.getElementById('sovDay-'+d.id);
+    if(sc){
+      const colors=['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'];
+      window.sovDayChartInst=new Chart(sc,{type:'doughnut',data:{labels:d.sovItems.map(it=>it.name),datasets:[{data:d.sovItems.map(it=>it.pct),backgroundColor:d.sovItems.map((_,i)=>colors[i%12]),borderColor:'#0E1A14',borderWidth:2}]},options:{responsive:true,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed.toFixed(1)}%`}}}}});
     }
   }
 }
