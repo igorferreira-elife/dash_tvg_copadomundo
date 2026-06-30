@@ -150,6 +150,13 @@ const SHEET_URLS={
 
 function parseNum(s){if(!s||s===''||s==='—')return 0;return Number(String(s).replace(/\./g,'').replace(',','.'))||0;}
 
+function safeUrl(s){
+  let u=(s||'').trim().replace(/"/g,'');
+  if(!u)return'';
+  if(!/^https?:\/\//i.test(u))u='https://'+u;
+  try{return new URL(u).href;}catch(e){return'';}
+}
+
 function parsePT(s){
   if(!s||s==='—')return 0;
   const m=String(s).trim().match(/([\d.,]+)\s*(mil|milh(?:ão|ões)|mi\b)?/i);
@@ -251,8 +258,8 @@ function buildDAILY(sheets){
     const platRows=byDate('PLATAFORMAS',date);
     const platMax=Math.max(...platRows.map(r=>parseNum(r.interacoes)),1);
     const plataformas=platRows.map(r=>({n:r.plataforma,v:parseNum(r.interacoes),max:platMax,posts:r.posts||'',interacoes:r.interacoes||''}));
-    const topPosts=byDate('TOP_POSTS',date).sort((a,b)=>Number(a.rank)-Number(b.rank)).map(r=>[r.plataforma+' '+r.horario,[r.interacoes,r.views&&r.views!==''?r.views+' views':null,r.alcance&&r.alcance!==''?r.alcance+' alcance':null].filter(Boolean).join(' · '),r.texto,r.url||'']);
-    const bottomPosts=byDate('BOTTOM_POSTS',date).sort((a,b)=>Number(a.rank)-Number(b.rank)).map(r=>[r.plataforma+' '+(r.horario||''),r.interacoes+' interações',r.texto,r.url||'']);
+    const topPosts=byDate('TOP_POSTS',date).sort((a,b)=>Number(a.rank)-Number(b.rank)).map(r=>[r.plataforma+' '+r.horario,[r.interacoes,r.views&&r.views!==''?r.views+' views':null,r.alcance&&r.alcance!==''?r.alcance+' alcance':null].filter(Boolean).join(' · '),r.texto,safeUrl(r.url)]);
+    const bottomPosts=byDate('BOTTOM_POSTS',date).sort((a,b)=>Number(a.rank)-Number(b.rank)).map(r=>[r.plataforma+' '+(r.horario||''),r.interacoes+' interações',r.texto,safeUrl(r.url)]);
 
     const tts=byDate('TRENDING_TOPICS',date).sort((a,b)=>Number(a.posicao)-Number(b.posicao)).map(r=>({pos:r.posicao,nome:r.nome,mundo:r.mundo||'—',brasil:r.brasil||'—'}));
 
@@ -335,12 +342,12 @@ function buildDAILY(sheets){
     .filter(r=>isValidDate((r[topKey]||'').trim())&&r.views&&parseNum(r.views)>0)
     .sort((a,b)=>parseNum(b.views)-parseNum(a.views))
     .slice(0,10)
-    .map(r=>[r.plataforma+' '+(r[topKey]||'')+' · '+(r.horario||''),[r.interacoes?r.interacoes+' interações':null,r.views?r.views+' views':null,r.alcance?r.alcance+' alcance':null].filter(Boolean).join(' · '),r.texto,r.url||'']);
+    .map(r=>[r.plataforma+' '+(r[topKey]||'')+' · '+(r.horario||''),[r.interacoes?r.interacoes+' interações':null,r.views?r.views+' views':null,r.alcance?r.alcance+' alcance':null].filter(Boolean).join(' · '),r.texto,safeUrl(r.url)]);
   const bottom5Global=(sheets.BOTTOM_POSTS||[])
     .filter(r=>isValidDate((r[bottomKey]||'').trim()))
     .sort((a,b)=>parseNum(a.interacoes)-parseNum(b.interacoes))
     .slice(0,5)
-    .map(r=>[r.plataforma+' '+(r[bottomKey]||''),(r.interacoes||'0')+' interações',r.texto,r.url||'']);
+    .map(r=>[r.plataforma+' '+(r[bottomKey]||''),(r.interacoes||'0')+' interações',r.texto,safeUrl(r.url)]);
 
   TOTAL={
     posts:sumPosts.toLocaleString('pt-BR'),
