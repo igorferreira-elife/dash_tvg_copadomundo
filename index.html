@@ -541,7 +541,7 @@ function renderSemanal(wIdx){
 
   const jogosMap={};
   days.forEach(dd=>dd.mencoes_jogos.forEach(m=>{jogosMap[m.jogo]=(jogosMap[m.jogo]||0)+parseNum(m.mencoes);}));
-  const jogosAgg=Object.entries(jogosMap).sort((a,b)=>b[1]-a[1]);
+  const jogosAgg=Object.entries(jogosMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
   const topPostsWeek=days.flatMap(dd=>dd.topPosts.map(p=>({day:dd.label,p}))).slice(0,10);
   const bottomPostsWeek=days.flatMap(dd=>dd.bottomPosts.map(p=>({day:dd.label,p}))).slice(0,5);
