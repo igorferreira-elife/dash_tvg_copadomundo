@@ -118,6 +118,7 @@
   </div>
 
   <div id="semanal-view" style="display:none;">
+    <div class="daystrip" id="weekstrip"></div>
     <div id="semanal-content"></div>
   </div>
 
@@ -378,9 +379,10 @@ function buildDAILY(sheets){
   const weekMap={};
   DAILY.forEach(dd=>{
     const wi=wkIdx(dd.label);
-    if(!weekMap[wi])weekMap[wi]={idx:wi,range:wkRange(wi),days:[],posts:0,interacoes:0,views:0,alcance:0,mencoes:0,contas:0};
+    if(!weekMap[wi])weekMap[wi]={idx:wi,range:wkRange(wi),days:[],dayObjects:[],posts:0,interacoes:0,views:0,alcance:0,mencoes:0,contas:0};
     const w=weekMap[wi];
     w.days.push(dd.label);
+    w.dayObjects.push(dd);
     if(dd.totals?._raw){w.posts+=dd.totals._raw.posts;w.interacoes+=dd.totals._raw.interacoes;w.views+=dd.totals._raw.views;w.alcance+=dd.totals._raw.alcance;}
     w.mencoes+=parsePT(dd._diario.mencoes);
     w.contas+=parsePT(dd._diario.contas);
@@ -491,35 +493,188 @@ function switchPage(view){
   ['navDaily','navSemanal'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',id==='nav'+view.charAt(0).toUpperCase()+view.slice(1));});
   document.getElementById('daily-view').style.display=view==='daily'?'':'none';
   document.getElementById('semanal-view').style.display=view==='semanal'?'':'none';
-  if(view==='semanal')renderSemanal();
+  if(view==='semanal')initWeekStrip();
 }
 
-function renderSemanal(){
+function initWeekStrip(){
+  const strip=document.getElementById('weekstrip');
+  if(strip.dataset.built)return;
+  strip.dataset.built='1';
+  if(!WEEKLY_DATA.length){document.getElementById('semanal-content').innerHTML='<p class="no-data" style="padding:20px;">Dados semanais não disponíveis.</p>';return;}
+  WEEKLY_DATA.forEach((w,i)=>{
+    const b=document.createElement('button');
+    b.className='daybtn'+(i===0?' active':'');
+    b.textContent='Semana '+(w.idx+1)+' · '+w.range;
+    b.onclick=()=>{strip.querySelectorAll('.daybtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderSemanal(w.idx);};
+    strip.appendChild(b);
+  });
+  renderSemanal(WEEKLY_DATA[0].idx);
+}
+
+function renderSemanal(wIdx){
+  const w=WEEKLY_DATA.find(x=>x.idx===wIdx);
+  const prev=WEEKLY_DATA.find(x=>x.idx===wIdx-1)||null;
   const container=document.getElementById('semanal-content');
-  if(!WEEKLY_DATA.length){container.innerHTML='<p class="no-data" style="padding:20px;">Dados semanais não disponíveis.</p>';return;}
-  const html=WEEKLY_DATA.map((w,wi)=>{
-    const prev=WEEKLY_DATA[wi-1];
-    const pct=(c,p)=>{if(!p)return'';const v=((c-p)/p)*100;return`<span class="${v>=0?'delta-up':'delta-down'}" style="font-size:11px;margin-left:6px;">${v>=0?'+':''}${v.toFixed(0)}% vs sem. ant.</span>`;};
-    return`
-    <div style="margin-bottom:24px;">
-      <h3 style="font-family:var(--display);font-size:17px;color:var(--globo-yellow);margin:0 0 12px;display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;background:var(--globo-yellow);border-radius:50%;display:inline-block;"></span>Semana ${w.idx+1} · ${w.range} <span style="font-family:var(--mono);font-size:11px;color:var(--txt-dim);font-weight:400;">${w.days.length} dia${w.days.length>1?'s':''}</span></h3>
-      <div class="grid">
-        <div class="card" style="border-color:rgba(255,214,10,.2);"><p class="stat-label">Posts</p><p class="stat-value">${w.posts.toLocaleString('pt-BR')}</p>${prev?pct(w.posts,prev.posts):''}</div>
-        <div class="card" style="border-color:rgba(255,214,10,.2);"><p class="stat-label">Interações</p><p class="stat-value">${fmt(w.interacoes)}</p>${prev?pct(w.interacoes,prev.interacoes):''}</div>
-        <div class="card" style="border-color:rgba(255,214,10,.2);"><p class="stat-label">Views</p><p class="stat-value">${fmt(w.views)}</p>${prev?pct(w.views,prev.views):''}</div>
-        <div class="card" style="border-color:rgba(255,214,10,.2);"><p class="stat-label">Alcance (IG+FB)</p><p class="stat-value">${fmt(w.alcance)}</p>${prev?pct(w.alcance,prev.alcance):''}</div>
-      </div>
-      <div class="grid" style="grid-template-columns:repeat(2,1fr);">
-        <div class="card"><p class="stat-label">Menções espontâneas</p><p class="stat-value">${fmt(w.mencoes)}</p>${prev?pct(w.mencoes,prev.mencoes):''}</div>
-        <div class="card"><p class="stat-label">Contas falando</p><p class="stat-value">${fmt(w.contas)}</p>${prev?pct(w.contas,prev.contas):''}</div>
-      </div>
-    </div>`;
-  }).join('<hr style="border:none;border-top:1px solid var(--line);margin:4px 0 20px;">');
+  if(!w){container.innerHTML='<p class="no-data" style="padding:20px;">Semana não encontrada.</p>';return;}
+
+  const pct=(c,p)=>{if(!p)return'';const v=((c-p)/p)*100;return`<span class="${v>=0?'delta-up':'delta-down'}" style="font-size:11px;margin-left:6px;">${v>=0?'+':''}${v.toFixed(0)}% vs sem. ant.</span>`;};
+  const days=w.dayObjects;
+
+  // Agrega plataformas: soma interações por rede
+  const platMap={};
+  days.forEach(dd=>dd.plataformas.forEach(p=>{if(!platMap[p.n])platMap[p.n]={n:p.n,v:0};platMap[p.n].v+=p.v;}));
+  const platAgg=Object.values(platMap).sort((a,b)=>b.v-a.v);
+  const platMax=Math.max(...platAgg.map(p=>p.v),1);
+  platAgg.forEach(p=>p.max=platMax);
+
+  // Agrega tags concorrência: soma depoimentos por hashtag
+  const tagMap={};
+  days.forEach(dd=>dd.tagsConcorrencia.forEach(([n,c])=>{tagMap[n]=(tagMap[n]||0)+parseNum(c);}));
+  const tagsAgg=Object.entries(tagMap).sort((a,b)=>b[1]-a[1]);
+
+  // Menções por jogo da semana
+  const jogosMap={};
+  days.forEach(dd=>dd.mencoes_jogos.forEach(m=>{jogosMap[m.jogo]=(jogosMap[m.jogo]||0)+parseNum(m.mencoes);}));
+  const jogosAgg=Object.entries(jogosMap).sort((a,b)=>b[1]-a[1]);
+
+  // Top posts da semana (todos os dias em sequência)
+  const topPostsWeek=days.flatMap(dd=>dd.topPosts.map(p=>({day:dd.label,p})));
+  // Bottom posts da semana
+  const bottomPostsWeek=days.flatMap(dd=>dd.bottomPosts.map(p=>({day:dd.label,p})));
+
+  // O que funcionou / não funcionou
+  const funcionouWeek=days.flatMap(dd=>dd.funcionou.map(x=>({day:dd.label,x})));
+  const naoFuncionouWeek=days.flatMap(dd=>dd.naofuncionou.map(x=>({day:dd.label,x})));
+
+  // Pontos positivos / atenção
+  const positivosWeek=days.flatMap(dd=>dd.positivos.map(x=>({day:dd.label,x})));
+  const atencaoWeek=days.flatMap(dd=>dd.atencao.map(x=>({day:dd.label,x})));
+
+  // Aprendizados da semana
+  const aprendizadosWeek=days.filter(dd=>dd.aprendizados).map(dd=>({day:dd.label,txt:dd.aprendizados}));
+
+  // Trending topics da semana (de todos os dias)
+  const ttsWeek=days.flatMap(dd=>dd.trendingTopics.map(t=>({day:dd.label,t})));
+
+  // SOV da semana (pega o último dia com SOV)
+  const sovWeek=days.slice().reverse().find(dd=>dd.sovItems&&dd.sovItems.length);
+
   container.innerHTML=`
     <div class="content-header">
-      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">Visão Semanal</h2>
+      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">Semana ${w.idx+1} · ${w.range}</h2>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--txt-dim);">${w.days.length} dia${w.days.length>1?'s':''} monitorados</span>
     </div>
-    ${html}`;
+
+    <div class="grid">
+      <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Posts (todos formatos)</p><p class="stat-value">${w.posts.toLocaleString('pt-BR')}</p>${prev?pct(w.posts,prev.posts):''}</div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Interações totais</p><p class="stat-value">${fmt(w.interacoes)}</p>${prev?pct(w.interacoes,prev.interacoes):''}</div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Views totais</p><p class="stat-value">${fmt(w.views)}</p>${prev?pct(w.views,prev.views):''}</div>
+      <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Alcance (IG + FB)</p><p class="stat-value">${fmt(w.alcance)}</p>${prev?pct(w.alcance,prev.alcance):''}</div>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:14px;">
+      <div class="card"><p class="stat-label">Menções espontâneas</p><p class="stat-value">${fmt(w.mencoes)}</p>${prev?pct(w.mencoes,prev.mencoes):''}</div>
+      <div class="card"><p class="stat-label">Contas falando da transmissão</p><p class="stat-value">${fmt(w.contas)}</p>${prev?pct(w.contas,prev.contas):''}</div>
+    </div>
+
+    <div class="row2">
+      <div class="card">
+        <p class="panel-title">Divisão de redes — interações acumuladas</p>
+        ${platAgg.length?platformRows(platAgg):'<p class="no-data">Dado não disponível.</p>'}
+      </div>
+      <div class="card">
+        <p class="panel-title">Comparativo de tags — concorrência</p>
+        ${tagsAgg.length?tagsAgg.map(([n,c])=>`<div class="tag-row"><span class="tag-name">${n}</span><span class="tag-count">${fmt(c)} depoimentos</span></div>`).join(''):'<p class="no-data">Dado não disponível.</p>'}
+        ${jogosAgg.length?`<p class="panel-title" style="margin-top:16px;font-size:14px;">Menções por partida</p>${jogosAgg.map(([j,m])=>`<div class="vs-row"><span>${j}</span><span>${fmt(m)} menções</span></div>`).join('')}`:''}
+      </div>
+    </div>
+
+    ${ttsWeek.length?`
+    <div class="card" style="margin-bottom:14px;">
+      <p class="panel-title">Trending Topics da semana</p>
+      <table class="tt-table">
+        <thead><tr><th>Dia</th><th>#</th><th>Termo</th><th>Mundo</th><th>Brasil</th></tr></thead>
+        <tbody>${ttsWeek.map(({day,t})=>`<tr><td style="font-family:var(--mono);font-size:10.5px;color:var(--txt-dim);">${day}</td><td>${t.pos}º</td><td>${t.nome}</td><td class="num">${t.mundo}</td><td class="num">${t.brasil}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`:''}
+
+    ${sovWeek?`
+    <div class="row2" style="margin-bottom:14px;">
+      <div class="card" style="display:flex;align-items:center;justify-content:center;">
+        <canvas id="sovWeek-${w.idx}" style="max-width:220px;max-height:220px;"></canvas>
+      </div>
+      <div class="card">
+        <p class="panel-title">Share of Voice · ${sovWeek.label}</p>
+        ${sovWeek.sovItems.map((it,i)=>`<div class="tag-row"><span class="tag-name"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'][i%12]};margin-right:8px;"></span>${it.name}</span><span class="tag-count">${it.pct.toFixed(1).replace('.',',')}%</span></div>`).join('')}
+      </div>
+    </div>`:''}
+
+    ${topPostsWeek.length?`
+    <div class="card" style="margin-bottom:14px;">
+      <p class="panel-title">Top posts da semana</p>
+      ${topPostsWeek.map(({day,p},i)=>`
+        <div class="toppost">
+          <div class="rank">${String(i+1).padStart(2,'0')}</div>
+          <div>
+            <div class="meta-line">${day} · ${p[0]} · ${p[1]}</div>
+            <div class="txt">${p[2]}</div>
+            ${p[3]?`<a href="${p[3]}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--globo-yellow);text-decoration:none;margin-top:3px;display:inline-block;opacity:.85;">ver post ↗</a>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`:''}
+
+    ${bottomPostsWeek.length?`
+    <div class="card" style="margin-bottom:14px;">
+      <p class="panel-title" style="color:var(--bad);">Bottom posts da semana</p>
+      ${bottomPostsWeek.map(({day,p},i)=>`
+        <div class="toppost">
+          <div class="rank" style="color:var(--bad);">${String(i+1).padStart(2,'0')}</div>
+          <div>
+            <div class="meta-line">${day} · ${p[0]} · <span style="color:var(--bad);">${p[1]}</span></div>
+            <div class="txt">${p[2]}</div>
+            ${p[3]?`<a href="${p[3]}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10px;color:var(--bad);text-decoration:none;margin-top:3px;display:inline-block;opacity:.85;">ver post ↗</a>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`:''}
+
+    ${(funcionouWeek.length||naoFuncionouWeek.length)?`
+    <div class="twocol">
+      <div class="work-good"><h4>✔ O que funcionou</h4>${funcionouWeek.length?`<ul>${funcionouWeek.map(({day,x})=>`<li><b>${x[0]}</b><span style="font-family:var(--mono);font-size:10px;color:var(--txt-dim);margin-left:6px;">${day}</span><br>${x[1]}</li>`).join('')}</ul>`:'<p class="no-data">Nada registrado.</p>'}</div>
+      <div class="work-bad"><h4>✘ O que não funcionou</h4>${naoFuncionouWeek.length?`<ul>${naoFuncionouWeek.map(({day,x})=>`<li><b>${x[0]}</b><span style="font-family:var(--mono);font-size:10px;color:var(--txt-dim);margin-left:6px;">${day}</span><br>${x[1]}</li>`).join('')}</ul>`:'<p class="no-data">Nada registrado.</p>'}</div>
+    </div>`:''}
+
+    ${(positivosWeek.length||atencaoWeek.length)?`
+    <div class="twocol">
+      ${positivosWeek.length?`
+      <div class="card">
+        <p class="panel-title" style="color:var(--good);">Pontos positivos</p>
+        <div class="attention-list">
+          ${positivosWeek.map(({day,x})=>`<div class="att-item positive"><b>${x[0]}</b><span style="font-family:var(--mono);font-size:10px;color:var(--txt-dim);margin-left:6px;">${day}</span><br>${x[1]}</div>`).join('')}
+        </div>
+      </div>`:'<div></div>'}
+      ${atencaoWeek.length?`
+      <div class="card">
+        <p class="panel-title">Pontos de atenção</p>
+        <div class="attention-list">
+          ${atencaoWeek.map(({day,x})=>`<div class="att-item warn"><b>${x[0]}</b><span style="font-family:var(--mono);font-size:10px;color:var(--txt-dim);margin-left:6px;">${day}</span><br>${x[1]}</div>`).join('')}
+        </div>
+      </div>`:'<div></div>'}
+    </div>`:''}
+
+    ${aprendizadosWeek.length?`
+    <div class="card">
+      <p class="panel-title">Aprendizados da semana</p>
+      ${aprendizadosWeek.map(({day,txt})=>`<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed var(--line);"><p style="font-family:var(--mono);font-size:10px;color:var(--txt-dim);margin:0 0 4px;">${day}</p><p style="font-size:13px;line-height:1.6;color:var(--txt);margin:0;">${txt}</p></div>`).join('')}
+    </div>`:''}
+  `;
+
+  if(window.sovWeekChartInst){window.sovWeekChartInst.destroy();window.sovWeekChartInst=null;}
+  if(sovWeek){
+    const sc=document.getElementById('sovWeek-'+w.idx);
+    if(sc){
+      const colors=['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'];
+      window.sovWeekChartInst=new Chart(sc,{type:'doughnut',data:{labels:sovWeek.sovItems.map(it=>it.name),datasets:[{data:sovWeek.sovItems.map(it=>it.pct),backgroundColor:sovWeek.sovItems.map((_,i)=>colors[i%12]),borderColor:'#0E1A14',borderWidth:2}]},options:{responsive:true,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed.toFixed(1)}%`}}}}});
+    }
+  }
 }
 
 fetchAll();
