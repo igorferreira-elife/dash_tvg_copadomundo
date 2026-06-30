@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Auditoria de URLs — Top/Bottom Posts</title>
+<style>
+  body{margin:0;background:#0E1A14;color:#EDF3EF;font-family:system-ui,sans-serif;padding:28px 20px;}
+  h1{font-size:20px;margin:0 0 6px;color:#FFD60A;}
+  .sub{font-size:12px;color:#9DB4AB;margin:0 0 24px;}
+  .summary{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+  .badge{padding:8px 16px;border-radius:7px;font-size:12px;font-weight:700;}
+  .ok{background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);color:#4ADE80;}
+  .warn{background:rgba(255,214,10,.12);border:1px solid rgba(255,214,10,.4);color:#FFD60A;}
+  .bad{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#F87171;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{text-align:left;color:#9DB4AB;font-size:10px;text-transform:uppercase;letter-spacing:.08em;padding:8px 10px;border-bottom:1px solid #214238;position:sticky;top:0;background:#0E1A14;}
+  td{padding:8px 10px;border-bottom:1px solid #1a2f28;vertical-align:top;max-width:300px;word-break:break-all;}
+  tr:hover td{background:#122520;}
+  .tag-ok{color:#4ADE80;font-weight:700;}
+  .tag-fixed{color:#FFD60A;font-weight:700;}
+  .tag-empty{color:#9DB4AB;}
+  .tag-bad{color:#F87171;font-weight:700;}
+  .raw{color:#9DB4AB;font-size:10.5px;}
+  a{color:#FFD60A;text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  .loading{padding:40px;text-align:center;color:#9DB4AB;}
+  .sheet-header{font-size:13px;font-weight:700;color:#FFD60A;padding:14px 0 6px;border-top:1px solid #214238;margin-top:8px;}
+</style>
+</head>
+<body>
+<h1>Auditoria de URLs — Top Posts &amp; Bottom Posts</h1>
+<p class="sub">Lê as abas TOP_POSTS e BOTTOM_POSTS e classifica cada URL encontrada.</p>
+<div id="summary" class="summary"></div>
+<div id="output"><div class="loading">Buscando dados da planilha…</div></div>
+<script>
+const TOP_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1149176862&single=true&output=csv';
+const BOT_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=1157776679&single=true&output=csv';
+
+function safeUrl(s){
+  let u=(s||'').trim().replace(/"/g,'');
+  if(!u)return{status:'empty',clean:''};
+  const original=u;
+  if(!/^https?:\/\//i.test(u))u='https://'+u;
+  try{
+    const clean=new URL(u).href;
+    return clean!==original?{status:'fixed',clean,original}:{status:'ok',clean};
+  }catch(e){return{status:'bad',clean:'',original};}
+}
+
+function parseCSV(text){
+  const lines=text.trim().split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  let hi=-1;
+  for(let i=0;i<Math.min(10,lines.length);i++){
+    if(lines[i].split(',')[0].replace(/^"|"$/g,'').trim().toLowerCase()==='data'){hi=i;break;}
+  }
+  if(hi===-1)return[];
+  const headers=lines[hi].split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase());
+  return lines.slice(hi+1).map(line=>{
+    const vals=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===','&&!inQ){vals.push(cur.trim().replace(/^"|"$/g,''));cur='';}
+      else cur+=ch;
+    }
+    vals.push(cur.trim().replace(/^"|"$/g,''));
+    const obj={};headers.forEach((h,i)=>{obj[h]=vals[i]||'';});
+    return obj;
+  }).filter(r=>Object.values(r).some(v=>v!==''));
+}
+
+async function fetchCSV(url){
+  const proxies=[url,`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
+  for(const u of proxies){
+    try{const r=await fetch(u);if(!r.ok)continue;const t=await r.text();if(t&&t.includes(','))return parseCSV(t);}catch(e){continue;}
+  }
+  return[];
+}
+
+function statusTag(s){
+  if(s==='ok')return`<span class="tag-ok">✔ OK</span>`;
+  if(s==='fixed')return`<span class="tag-fixed">⚠ Corrigida automaticamente</span>`;
+  if(s==='empty')return`<span class="tag-empty">— Vazia</span>`;
+  return`<span class="tag-bad">✘ Inválida</span>`;
+}
+
+function buildTable(rows,sheetName){
+  if(!rows.length)return`<div class="sheet-header">${sheetName}</div><p style="color:#9DB4AB;font-size:12px;">Nenhum dado encontrado.</p>`;
+  const hasUrl=rows.some(r=>r.url);
+  if(!hasUrl)return`<div class="sheet-header">${sheetName}</div><p style="color:#9DB4AB;font-size:12px;">Coluna 'url' não encontrada.</p>`;
+  return`
+    <div class="sheet-header">${sheetName} · ${rows.length} posts</div>
+    <table>
+      <thead><tr><th>Dia</th><th>Plataforma</th><th>Texto</th><th>URL original</th><th>Status</th><th>Link</th></tr></thead>
+      <tbody>${rows.map(r=>{
+        const u=safeUrl(r.url);
+        return`<tr>
+          <td>${r.data||'—'}</td>
+          <td>${r.plataforma||'—'}</td>
+          <td style="max-width:180px;">${(r.texto||'').slice(0,80)}${r.texto&&r.texto.length>80?'…':''}</td>
+          <td class="raw">${r.url||'<em>vazia</em>'}</td>
+          <td>${statusTag(u.status)}${u.status==='fixed'?`<br><span class="raw">→ ${u.clean}</span>`:''}</td>
+          <td>${u.clean?`<a href="${u.clean}" target="_blank" rel="noopener">abrir ↗</a>`:''}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+async function run(){
+  const [top,bot]=await Promise.all([fetchCSV(TOP_URL),fetchCSV(BOT_URL)]);
+  const all=[...top,...bot];
+  const counts={ok:0,fixed:0,empty:0,bad:0};
+  all.forEach(r=>{counts[safeUrl(r.url).status]++;});
+
+  document.getElementById('summary').innerHTML=`
+    <div class="badge ok">✔ ${counts.ok} válidas</div>
+    <div class="badge warn">⚠ ${counts.fixed} corrigidas automaticamente</div>
+    <div class="badge bad">✘ ${counts.bad} inválidas</div>
+    <div class="badge" style="background:rgba(157,180,171,.1);border:1px solid #214238;color:#9DB4AB;">— ${counts.empty} vazias</div>
+  `;
+  document.getElementById('output').innerHTML=buildTable(top,'TOP_POSTS')+buildTable(bot,'BOTTOM_POSTS');
+}
+run();
+</script>
+</body>
+</html>
