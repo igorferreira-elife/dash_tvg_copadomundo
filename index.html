@@ -19,7 +19,6 @@
   header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:24px;flex-wrap:wrap;gap:14px;}
   .brand-left{display:flex;align-items:center;gap:14px;}
   .brand-logo{height:36px;width:auto;display:block;flex-shrink:0;}
-  .brand-divider{width:1px;height:28px;background:var(--line);}
   .brand-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--globo-yellow);margin:0 0 6px;}
   h1{font-family:var(--display);font-weight:600;font-size:34px;margin:0;letter-spacing:-0.01em;}
   h1 span{color:var(--globo-yellow);}
@@ -46,10 +45,6 @@
   .platform-val{width:78px;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--txt);}
   .twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
   @media(max-width:820px){.twocol{grid-template-columns:1fr;}}
-  ul.clean{margin:0;padding:0;list-style:none;}
-  ul.clean li{padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;line-height:1.5;display:flex;justify-content:space-between;gap:10px;}
-  ul.clean li:last-child{border-bottom:none;}
-  .tname{color:var(--txt);}.tcount{font-family:var(--mono);color:var(--globo-yellow);font-size:12px;white-space:nowrap;}
   .work-good,.work-bad{padding:14px 16px;border-radius:10px;font-size:13px;line-height:1.55;}
   .work-good{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);}
   .work-bad{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);}
@@ -103,8 +98,6 @@
  <header>
   <div class="brand-left">
     <img class="brand-logo" src="logo-elife.png" alt="eLife">
-    
-    <!-- Esta div agrupa os textos e empilha um em cima do outro -->
     <div>
       <p class="brand-eyebrow">Monitoramento Digital</p>
       <h1>Copa do Mundo na <span>Globo</span></h1>
@@ -117,7 +110,6 @@
   <div class="daystrip" id="pagenav" style="margin-bottom:14px;">
     <button class="daybtn active" id="navDaily" onclick="switchPage('daily')">Visão Diária</button>
     <button class="daybtn" id="navSemanal" onclick="switchPage('semanal')">📅 Semanal</button>
-    <button class="daybtn" id="navSov" onclick="switchPage('sov')">◐ Share of Voice</button>
   </div>
 
   <div id="daily-view">
@@ -127,10 +119,6 @@
 
   <div id="semanal-view" style="display:none;">
     <div id="semanal-content"></div>
-  </div>
-
-  <div id="sov-view" style="display:none;">
-    <div id="sov-content"></div>
   </div>
 
   <footer>Metodologia: X/Twitter (Brandwatch) · Facebook (Socialnews/Brandwatch) · Instagram (hashtags oficiais + amostra de 700 mil perfis) · YouTube (posts e comentários). Depoimentos = volume total de menções nas plataformas monitoradas.</footer>
@@ -226,17 +214,12 @@ function showLoading(show){
 }
 
 function buildDAILY(sheets){
-  // PATCH 5: union de datas de DIARIO + TOTALS para nao perder dias sem mencoes
   const getDateKey=(sheet)=>{
-    // Procura em todas as rows a que tem chave 'data' com valor no formato DD/MM
     const rows=sheets[sheet]||[];
     if(!rows.length)return'data';
-    // Tenta achar a key cujo nome é 'data'
     const first=rows[0];
     const byName=Object.keys(first).find(k=>k.toLowerCase().trim()==='data');
-    if(byName)return byName;
-    // Fallback: primeira key
-    return Object.keys(first)[0];
+    return byName||Object.keys(first)[0];
   };
   const byDate=(sheet,date)=>{
     const key=getDateKey(sheet);
@@ -256,12 +239,9 @@ function buildDAILY(sheets){
     return;
   }
 
-  const palette={Instagram:'#E1306C',Facebook:'#2D6CDF',Twitter:'#1DA1F2',TikTok:'#FFD60A',YouTube:'#FF4444'};
-
   DAILY=dates.map(date=>{
     const d=first('DIARIO',date);
     const t=first('TOTALS',date);
-    console.log('TOTALS row for',date,JSON.stringify(t));
     const aprendizado=first('APRENDIZADOS',date);
     const platRows=byDate('PLATAFORMAS',date);
     const platMax=Math.max(...platRows.map(r=>parseNum(r.interacoes)),1);
@@ -269,19 +249,16 @@ function buildDAILY(sheets){
     const topPosts=byDate('TOP_POSTS',date).sort((a,b)=>Number(a.rank)-Number(b.rank)).map(r=>[r.plataforma+' '+r.horario,[r.interacoes,r.views&&r.views!==''?r.views+' views':null,r.alcance&&r.alcance!==''?r.alcance+' alcance':null].filter(Boolean).join(' · '),r.texto,r.url||'']);
     const bottomPosts=byDate('BOTTOM_POSTS',date).sort((a,b)=>Number(a.rank)-Number(b.rank)).map(r=>[r.plataforma+' '+(r.horario||''),r.interacoes+' interações',r.texto,r.url||'']);
 
-    // PATCH 3: trendingTopics como objetos para render correto
     const tts=byDate('TRENDING_TOPICS',date).sort((a,b)=>Number(a.posicao)-Number(b.posicao)).map(r=>({pos:r.posicao,nome:r.nome,mundo:r.mundo||'—',brasil:r.brasil||'—'}));
 
     const trends=byDate('GOOGLE_TRENDS',date).sort((a,b)=>Number(a.posicao)-Number(b.posicao)).map(r=>[r.termo,r.volume_buscas?Number(r.volume_buscas).toLocaleString('pt-BR'):'—']);
     const tags=byDate('TAGS_CONCORRENCIA',date).map(r=>[r.hashtag,r.depoimentos]);
 
-    // PATCH 4: mencoes_jogos consistente
     const mencoes_jogos=byDate('MENCOES_JOGOS',date).map(r=>({jogo:r.jogo,mencoes:r.mencoes}));
 
     const funcionou=byDate('DIAGNOSTICO',date).filter(r=>r.tipo==='funcionou').map(r=>[r.titulo,r.descricao]);
     const naofuncionou=byDate('DIAGNOSTICO',date).filter(r=>r.tipo==='nao_funcionou').map(r=>[r.titulo,r.descricao]);
 
-    // PATCH 1+2: positivos e atencao como arrays [titulo, descricao]
     const positivos=byDate('PONTOS',date).filter(r=>r.tipo==='positivo').map(r=>[r.titulo,r.descricao]);
     const atencao=byDate('PONTOS',date).filter(r=>r.tipo==='atencao').map(r=>[r.titulo,r.descricao]);
 
@@ -370,17 +347,16 @@ function buildDAILY(sheets){
     bottom5Global,
   };
 
-  // SOV: pega o lote mais recente (para aba dedicada) e guarda todas as datas disponíveis
+  // SOV: computa breakdown consolidado para Visão Total
   const sovKey=getDateKey('SOV');
   const sovRowsRaw=(sheets.SOV||[]).filter(r=>isValidDate((r[sovKey]||'').trim()));
   if(sovRowsRaw.length){
     const dsk=dt=>{const[dd,mm]=dt.split('/').map(Number);return mm*100+dd;};
     const sovDates=[...new Set(sovRowsRaw.map(r=>r[sovKey].trim()))].sort((a,b)=>dsk(a)-dsk(b));
     const lastDate=sovDates[sovDates.length-1];
-    const items=sovRowsRaw.filter(r=>r[sovKey].trim()===lastDate)
+    const lastItems=sovRowsRaw.filter(r=>r[sovKey].trim()===lastDate)
       .map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0,volume:parseNum(r.volume||'0')}))
       .filter(it=>it.name).sort((a,b)=>b.pct-a.pct);
-    // SOV total: recalcula % por volume se disponível, senão usa última data
     const allSovItems=sovRowsRaw.map(r=>({name:(r.concorrente||'').trim(),pct:parseFloat(String(r.percentual||'0').replace(',','.'))||0,volume:parseNum(r.volume||'0')})).filter(it=>it.name);
     const hasVolume=allSovItems.some(it=>it.volume>0);
     let totalSovItems;
@@ -389,9 +365,9 @@ function buildDAILY(sheets){
       const totalVol=Object.values(volMap).reduce((s,v)=>s+v,0);
       totalSovItems=Object.entries(volMap).map(([name,vol])=>({name,volume:vol,pct:totalVol?vol/totalVol*100:0})).sort((a,b)=>b.pct-a.pct);
     }else{
-      totalSovItems=items; // sem volume, usa último lote
+      totalSovItems=lastItems;
     }
-    SOV_DATA={date:lastDate,firstDate:sovDates[0],items,totalSovItems};
+    SOV_DATA={totalSovItems};
   }else{
     SOV_DATA=null;
   }
@@ -512,11 +488,9 @@ function renderTotal(){
 }
 
 function switchPage(view){
-  ['navDaily','navSemanal','navSov'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',id==='nav'+view.charAt(0).toUpperCase()+view.slice(1));});
+  ['navDaily','navSemanal'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',id==='nav'+view.charAt(0).toUpperCase()+view.slice(1));});
   document.getElementById('daily-view').style.display=view==='daily'?'':'none';
   document.getElementById('semanal-view').style.display=view==='semanal'?'':'none';
-  document.getElementById('sov-view').style.display=view==='sov'?'':'none';
-  if(view==='sov')renderSOV();
   if(view==='semanal')renderSemanal();
 }
 
@@ -546,40 +520,6 @@ function renderSemanal(){
       <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">Visão Semanal</h2>
     </div>
     ${html}`;
-}
-
-function renderSOV(){
-  const container=document.getElementById('sov-content');
-  if(!SOV_DATA||!SOV_DATA.items.length){
-    container.innerHTML='<p class="no-data" style="padding:20px;">Nenhum dado de Share of Voice cadastrado ainda. Preencha a aba SOV na planilha.</p>';
-    return;
-  }
-  const colors=['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'];
-  const items=SOV_DATA.items;
-  container.innerHTML=`
-    <div class="content-header">
-      <h2 style="font-family:var(--display);font-size:20px;margin:0;color:var(--globo-yellow);">Share of Voice</h2>
-      <div class="meta" style="text-align:left;">Desde ${SOV_DATA.firstDate} · Atualizado em ${SOV_DATA.date}</div>
-    </div>
-    <div class="row2">
-      <div class="card" style="display:flex;align-items:center;justify-content:center;">
-        <canvas id="sovChartCanvas" style="max-width:260px;max-height:260px;"></canvas>
-      </div>
-      <div class="card">
-        <p class="panel-title">Participação por concorrente</p>
-        ${items.map((it,i)=>`<div class="tag-row"><span class="tag-name"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${colors[i%colors.length]};margin-right:8px;"></span>${it.name}</span><span class="tag-count">${it.pct.toFixed(1).replace('.',',')}%</span></div>`).join('')}
-      </div>
-    </div>
-  `;
-  if(window.sovChartInstance){window.sovChartInstance.destroy();window.sovChartInstance=null;}
-  const canvas=document.getElementById('sovChartCanvas');
-  if(canvas){
-    window.sovChartInstance=new Chart(canvas,{
-      type:'doughnut',
-      data:{labels:items.map(it=>it.name),datasets:[{data:items.map(it=>it.pct),backgroundColor:items.map((_,i)=>colors[i%colors.length]),borderColor:'#0E1A14',borderWidth:2}]},
-      options:{responsive:true,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}%`}}}}
-    });
-  }
 }
 
 fetchAll();
