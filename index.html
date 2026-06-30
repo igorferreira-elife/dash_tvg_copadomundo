@@ -7,11 +7,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+  @font-face{font-family:'GlobotipoCorporativa';src:url('fonts/GlobotipoCorporativa-Regular.ttf') format('truetype');font-weight:400;font-style:normal;}
+  @font-face{font-family:'GlobotipoCorporativa';src:url('fonts/GlobotipoCorporativa-Bold.ttf') format('truetype');font-weight:700;font-style:normal;}
+  @font-face{font-family:'GlobotipoCorporativaTextos';src:url('fonts/GlobotipoCorporativaTextos-Regular.ttf') format('truetype');font-weight:400;font-style:normal;}
+  @font-face{font-family:'GlobotipoCorporativaTextos';src:url('fonts/GlobotipoCorporativaTextos-Bold.ttf') format('truetype');font-weight:700;font-style:normal;}
   :root{
     --bg: #0E1A14;--panel: #122520;--panel-2: #16302A;--line: #214238;
     --globo-yellow: #FFD60A;--globo-blue: #2D6CDF;--txt: #EDF3EF;--txt-dim: #9DB4AB;
     --good: #4ADE80;--bad: #F87171;
-    --display: 'Fraunces', Georgia, serif;--body: 'Inter', system-ui, sans-serif;--mono: 'JetBrains Mono', monospace;
+    --display: 'GlobotipoCorporativa', Georgia, serif;--body: 'GlobotipoCorporativaTextos', system-ui, sans-serif;--mono: 'GlobotipoCorporativaTextos', system-ui, sans-serif;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:radial-gradient(circle at 15% 0%, #163b2c 0%, var(--bg) 55%);color:var(--txt);font-family:var(--body);-webkit-font-smoothing:antialiased;}
