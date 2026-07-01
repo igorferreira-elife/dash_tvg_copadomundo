@@ -148,6 +148,8 @@ const SHEET_URLS={
   SOV:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=741633051&single=true&output=csv',
 };
 
+let BRASIL_GAME_DAYS=[];  // preenchido em buildDAILY
+
 function parseNum(s){if(!s||s===''||s==='—')return 0;return Number(String(s).replace(/\./g,'').replace(',','.'))||0;}
 
 function safeUrl(s){
@@ -397,6 +399,15 @@ function buildDAILY(sheets){
     w.contas+=parsePT(dd._diario.contas);
   });
   WEEKLY_DATA=Object.values(weekMap).sort((a,b)=>a.idx-b.idx);
+
+  // Detecta dias de jogo do Brasil a partir de MENCOES_JOGOS
+  BRASIL_GAME_DAYS=DAILY
+    .filter(dd=>dd.mencoes_jogos.some(m=>/brasil/i.test(m.jogo)))
+    .map(dd=>({
+      date:dd.label,
+      jogo:dd.mencoes_jogos.find(m=>/brasil/i.test(m.jogo))?.jogo||dd.label,
+      daily:dd,
+    }));
 }
 
 function initDayStrip(){
@@ -676,6 +687,33 @@ function renderDay(d){
       <div class="card" style="border-color:rgba(255,214,10,.25);"><p class="stat-label">Alcance (IG + FB)</p><p class="stat-value">${d.totals.alcance}</p>${d.totals.deltas?.alcance?`<p class="stat-sub ${d.totals.deltas.alcance.startsWith('+')?'delta-up':'delta-down'}">${d.totals.deltas.alcance} vs dia anterior</p>`:'<p class="stat-sub" style="color:var(--txt-dim)">Primeiro dia monitorado</p>'}</div>
     </div>`:''}
 
+    ${(()=>{
+      const gIdx=BRASIL_GAME_DAYS.findIndex(g=>g.date===d.label);
+      if(gIdx<1)return'';
+      const games=BRASIL_GAME_DAYS.slice(0,gIdx+1);
+      const cols=['#FFD60A','#4ADE80','#38BDF8','#F472B6'];
+      const rows=games.map((g,i)=>{
+        const t=g.daily.totals;
+        return`<tr>
+          <td style="font-family:var(--mono);font-size:11px;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cols[i%4]};margin-right:6px;"></span>${g.jogo}</td>
+          <td class="num">${t?t.posts:'—'}</td>
+          <td class="num">${t?t.interacoes:'—'}</td>
+          <td class="num">${t?t.views:'—'}</td>
+          <td class="num">${t?t.alcance:'—'}</td>
+          <td class="num">${fmt(parsePT(g.daily._diario.mencoes))}</td>
+        </tr>`;
+      }).join('');
+      return`
+      <div class="card" style="margin-bottom:14px;border-color:rgba(74,222,128,.2);">
+        <p class="panel-title" style="color:var(--good);">Comparativo · Jogos do Brasil</p>
+        <canvas id="brasilChart-${d.id}" style="max-height:180px;margin-bottom:14px;"></canvas>
+        <table class="tt-table">
+          <thead><tr><th>Jogo</th><th style="text-align:right;">Posts</th><th style="text-align:right;">Interações</th><th style="text-align:right;">Views</th><th style="text-align:right;">Alcance</th><th style="text-align:right;">Menções</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    })()}
+
     <div class="row2">
       <div class="card">
         <p class="panel-title">Evolução de menções por hora</p>
@@ -790,6 +828,33 @@ function renderDay(d){
     if(sc){
       const colors=['#FF7A1A','#FFD60A','#9ACD32','#4ADE80','#15B8A6','#38BDF8','#7C9BFF','#9D7CFF','#E1306C','#F472B6','#A78BFA','#FB7185'];
       window.sovDayChartInst=new Chart(sc,{type:'doughnut',data:{labels:d.sovItems.map(it=>it.name),datasets:[{data:d.sovItems.map(it=>it.pct),backgroundColor:d.sovItems.map((_,i)=>colors[i%12]),borderColor:'#0E1A14',borderWidth:2}]},options:{responsive:true,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed.toFixed(1)}%`}}}}});
+    }
+  }
+  if(window.brasilChartInst){window.brasilChartInst.destroy();window.brasilChartInst=null;}
+  const gIdx=BRASIL_GAME_DAYS.findIndex(g=>g.date===d.label);
+  if(gIdx>=1){
+    const bc=document.getElementById('brasilChart-'+d.id);
+    if(bc){
+      const games=BRASIL_GAME_DAYS.slice(0,gIdx+1);
+      const cols=['#FFD60A','#4ADE80','#38BDF8','#F472B6'];
+      window.brasilChartInst=new Chart(bc,{
+        type:'bar',
+        data:{
+          labels:games.map(g=>g.jogo),
+          datasets:[
+            {label:'Views',data:games.map(g=>g.daily.totals?._raw?.views||0),backgroundColor:games.map((_,i)=>cols[i%4]+'CC'),borderRadius:5},
+            {label:'Interações',data:games.map(g=>g.daily.totals?._raw?.interacoes||0),backgroundColor:games.map((_,i)=>cols[i%4]+'66'),borderRadius:5},
+          ]
+        },
+        options:{
+          responsive:true,
+          plugins:{legend:{labels:{color:'#9DB4AB',font:{size:11}}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`}}},
+          scales:{
+            x:{ticks:{color:'#9DB4AB',font:{size:10}},grid:{color:'#214238'}},
+            y:{ticks:{color:'#9DB4AB',callback:v=>fmt(v)},grid:{color:'#214238'}}
+          }
+        }
+      });
     }
   }
 }
