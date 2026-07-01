@@ -148,7 +148,8 @@ const SHEET_URLS={
   SOV:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=741633051&single=true&output=csv',
 };
 
-let BRASIL_GAME_DAYS=[];  // preenchido em buildDAILY
+const BRASIL_GAME_DATES=['13/06','19/06','24/06','29/06'];
+let BRASIL_GAME_DAYS=[];
 
 function parseNum(s){if(!s||s===''||s==='—')return 0;return Number(String(s).replace(/\./g,'').replace(',','.'))||0;}
 
@@ -400,14 +401,14 @@ function buildDAILY(sheets){
   });
   WEEKLY_DATA=Object.values(weekMap).sort((a,b)=>a.idx-b.idx);
 
-  // Detecta dias de jogo do Brasil a partir de MENCOES_JOGOS
-  BRASIL_GAME_DAYS=DAILY
-    .filter(dd=>dd.mencoes_jogos.some(m=>/brasil/i.test(m.jogo)))
-    .map(dd=>({
-      date:dd.label,
-      jogo:dd.mencoes_jogos.find(m=>/brasil/i.test(m.jogo))?.jogo||dd.label,
-      daily:dd,
-    }));
+  // Monta comparativo dos jogos do Brasil usando datas fixas + nome do adversário da planilha
+  BRASIL_GAME_DAYS=BRASIL_GAME_DATES.map(date=>{
+    const daily=DAILY.find(d=>d.label===date);
+    if(!daily)return null;
+    const jogoEntry=daily.mencoes_jogos.find(m=>/brasil/i.test(m.jogo))||daily.mencoes_jogos[0];
+    const jogo=jogoEntry?.jogo||`Brasil · ${date}`;
+    return{date,jogo,daily};
+  }).filter(Boolean);
 }
 
 function initDayStrip(){
