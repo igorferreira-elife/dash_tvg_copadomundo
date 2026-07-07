@@ -148,7 +148,7 @@ const SHEET_URLS={
   SOV:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQP-IADc8Lbf8KJKdjj2Q45IDXh3o_k9ccNdbqQqLd0BtZVhkgptt7j6cL1p_pRs3r-toUdWdXTzUz0/pub?gid=741633051&single=true&output=csv',
 };
 
-const BRASIL_GAME_DATES=['13/06','19/06','24/06','29/06'];
+const BRASIL_GAME_DATES=['13/06','19/06','24/06','29/06','05/07'];
 let BRASIL_GAME_DAYS=[];
 
 function parseNum(s){if(!s||s===''||s==='—')return 0;return Number(String(s).replace(/\./g,'').replace(',','.'))||0;}
@@ -386,8 +386,9 @@ function buildDAILY(sheets){
   }
 
   // Semanal: agrupa dias em semanas (sem1=11-15/jun, depois seg-dom)
-  const wkIdx=dt=>{const[dd,mm]=dt.split('/').map(Number);if(mm===6&&dd>=11&&dd<=15)return 0;const base=new Date(2026,5,16);const cur=new Date(2026,mm-1,dd);return Math.floor((cur-base)/(7*864e5))+1;};
-  const wkRange=i=>{if(i===0)return'11/06 – 15/06';const mon=new Date(2026,5,16+(i-1)*7);const sun=new Date(mon);sun.setDate(mon.getDate()+6);const f=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return`${f(mon)} – ${f(sun)}`;};
+  // Semana 1 especial: 11-14/jun (qui-dom). Depois seg-dom a partir de 15/jun (segunda).
+  const wkIdx=dt=>{const[dd,mm]=dt.split('/').map(Number);if(mm===6&&dd>=11&&dd<=14)return 0;const base=new Date(2026,5,15);const cur=new Date(2026,mm-1,dd);return Math.floor((cur-base)/(7*864e5))+1;};
+  const wkRange=i=>{if(i===0)return'11/06 – 14/06';const mon=new Date(2026,5,15+(i-1)*7);const sun=new Date(mon);sun.setDate(mon.getDate()+6);const f=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return`${f(mon)} – ${f(sun)}`;};
   const weekMap={};
   DAILY.forEach(dd=>{
     const wi=wkIdx(dd.label);
@@ -414,22 +415,51 @@ function buildDAILY(sheets){
 function initDayStrip(){
   const daystrip=document.getElementById('daystrip');
   daystrip.innerHTML='';
+  daystrip.style.display='block';
+
+  // Agrupa dias por mês
+  const months={};
+  DAILY.forEach(d=>{const mm=d.label.split('/')[1];(months[mm]=months[mm]||[]).push(d);});
+  const monthNames={'06':'Junho','07':'Julho','08':'Agosto','09':'Setembro'};
+  const monthKeys=Object.keys(months).sort();
+
+  const monthRow=document.createElement('div');
+  monthRow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;';
+  const dayRow=document.createElement('div');
+  dayRow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;';
+  daystrip.appendChild(monthRow);
+  daystrip.appendChild(dayRow);
 
   const tb=document.createElement('button');
-  tb.className='daybtn';
-  tb.style.cssText='font-weight:700;';
-  tb.textContent='★ Visão Total';
-  tb.onclick=()=>{document.querySelectorAll('#daystrip .daybtn').forEach(x=>x.classList.remove('active'));tb.classList.add('active');renderTotal();};
-  daystrip.appendChild(tb);
+  tb.className='daybtn';tb.style.cssText='font-weight:700;';tb.textContent='★ Visão Total';
+  tb.onclick=()=>{monthRow.querySelectorAll('.daybtn').forEach(x=>x.classList.remove('active'));tb.classList.add('active');dayRow.style.display='none';renderTotal();};
+  monthRow.appendChild(tb);
 
-  DAILY.forEach((d,i)=>{
-    const b=document.createElement('button');
-    b.className='daybtn'+(i===0?' active':'');
-    b.textContent=d.label;
-    b.onclick=()=>{document.querySelectorAll('#daystrip .daybtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderDay(d);};
-    daystrip.appendChild(b);
+  function showMonth(mm){
+    dayRow.innerHTML='';dayRow.style.display='flex';
+    months[mm].forEach(d=>{
+      const b=document.createElement('button');
+      b.className='daybtn';b.textContent=d.label;
+      b.onclick=()=>{dayRow.querySelectorAll('.daybtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderDay(d);};
+      dayRow.appendChild(b);
+    });
+  }
+
+  monthKeys.forEach(mm=>{
+    const mbtn=document.createElement('button');
+    mbtn.className='daybtn';mbtn.textContent=monthNames[mm]||mm;
+    mbtn.onclick=()=>{monthRow.querySelectorAll('.daybtn').forEach(x=>x.classList.remove('active'));mbtn.classList.add('active');showMonth(mm);const first=dayRow.querySelector('.daybtn');if(first)first.click();};
+    monthRow.appendChild(mbtn);
   });
-  if(DAILY[0])renderDay(DAILY[0]);
+
+  // Default: mês mais recente, último dia
+  const lastMm=monthKeys[monthKeys.length-1];
+  const lastMonthBtn=monthRow.querySelectorAll('.daybtn')[monthKeys.length];
+  lastMonthBtn.classList.add('active');
+  showMonth(lastMm);
+  const dayBtns=dayRow.querySelectorAll('.daybtn');
+  const lastDay=dayBtns[dayBtns.length-1];
+  if(lastDay)lastDay.click();
 }
 
 function renderTotal(){
